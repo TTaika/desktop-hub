@@ -1,0 +1,16 @@
+{
+  "columns": 8,
+  "rows": 4,
+  "padding": "32px 36px 36px",
+  "gap": "20px",
+  "background": null,
+  "tile_style": "glass",
+  "widgets": [
+    {"type": "clock", "size": "2x1", "col": 1, "row": 1},
+    {"type": "system", "size": "3x2", "col": 3, "row": 1, "accent": "#30d158"},
+    {"type": "discord", "size": "2x3", "col": 1, "row": 2, "accent": "#5e5ce6"},
+    {"type": "discord_chat", "size": "2x2", "col": 6, "row": 1},
+    {"type": "processes", "size": "3x2", "col": 3, "row": 3},
+    {"type": "calendar", "size": "2x2", "col": 6, "row": 3}
+  ]
+}

@@ -1,0 +1,14 @@
+.sys-gauges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.sys-gauge { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.sys-label { margin-top: 10px; font-weight: 700; letter-spacing: 0.06em; color: var(--muted); }
+.sys-sub { margin-top: 1px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sys-chart { position: relative; flex: 1; min-height: 50px; margin: 18px 0 12px; border-radius: 16px;
+  background: rgba(120, 120, 128, 0.08); overflow: hidden; }
+.sys-chart .spark { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
+.sys-legend { position: absolute; top: 9px; left: 12px; display: flex; gap: 12px; font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.sys-footer { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); }
+.sys-stat { display: flex; align-items: center; gap: 2px; white-space: pre; overflow: hidden; }
+.sys-stat .icon { color: var(--accent); }
+.sys-no-chart .sys-gauges { margin: auto 0; }                 /* without a chart the gauges centre in the tile */
+.sys-no-chart .sys-footer { margin-top: auto; }

@@ -1,0 +1,44 @@
+/* a warm glow washes over the tile while the lights are on */
+.w-lights::before { content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; pointer-events: none; opacity: 0;
+  background: radial-gradient(120% 90% at 0% 0%, rgba(255, 214, 10, 0.16), transparent 65%); transition: opacity 0.5s ease; }
+.w-lights.on::before { opacity: 1; }
+.w-lights.style-bare::before { display: none; }
+.w-lights.busy .li-top { opacity: 0.7; }
+.li-status { font-weight: 500; }
+
+.li-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.li-power { width: 64px; height: 64px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--fill-strong); color: var(--text); }
+.w-lights.on .li-power { background: var(--accent); color: rgba(0, 0, 0, 0.78); box-shadow: 0 6px 22px rgba(255, 214, 10, 0.3); }
+
+/* brightness pill: the fill is drawn by us, the invisible input on top takes the drag */
+.li-bright { position: relative; flex: 1; min-width: 0; height: 52px; border-radius: 18px; background: var(--fill-strong);
+  overflow: hidden; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+.li-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: rgba(255, 255, 255, 0.92); }
+.w-lights.on .li-fill { background: var(--accent); }
+.li-sun, .li-pct { position: relative; display: flex; color: var(--muted); mix-blend-mode: normal; }
+.w-lights.on .li-sun { color: rgba(0, 0, 0, 0.7); }
+.li-pct { font-size: 15px; font-weight: 600; color: var(--text); }
+.li-range { position: absolute; top: 0; left: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+
+.li-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.li-chip { display: flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 99px; background: var(--fill);
+  font-size: 13px; font-weight: 500; text-transform: capitalize; }
+.li-chip i { width: 10px; height: 10px; border-radius: 50%; }
+.li-temp-warm i { background: #ffb259; }
+.li-temp-neutral i { background: #fff1d6; }
+.li-temp-cool i { background: #bfe0ff; }
+.li-colours { gap: 9px; }
+.li-dot { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.25); }
+.li-scene { background: rgba(255, 214, 10, 0.14); color: #ffe58a; }
+.li-msg { margin-top: auto; font-size: 12px; color: var(--bad); min-height: 1em; }
+
+/* 2×1: the same controls, a size down */
+.li-compact .tile-head { margin-bottom: 10px; }
+.li-compact .li-top { margin-bottom: 12px; }
+.li-compact .li-power { width: 50px; height: 50px; }
+.li-compact .li-bright { height: 44px; border-radius: 15px; }
+.li-compact .li-row { margin-bottom: 8px; }
+.li-compact .li-chip { padding: 6px 12px; }
+.li-compact .li-dot { width: 26px; height: 26px; }
+.li-compact .li-msg { display: none; }

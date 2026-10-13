@@ -1,0 +1,31 @@
+.dc-where { font-weight: 500; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.dc-idle { display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--faint); }
+.dc-idle div { color: var(--muted); font-weight: 500; }
+.dc-channel { flex: none; font-size: 22px; margin-bottom: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-n { color: var(--faint); font-weight: 400; }
+.dc-list { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.dc-member { display: flex; flex: none; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 16px; }
+.dc-member.me { background: var(--fill); }
+.dc-avatar { width: 40px; height: 40px; border-radius: 50%; flex: none; background: var(--track);
+  box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); transition: box-shadow 0.15s ease-out; }
+/* the ring lights up the moment someone talks, and fades a little slower */
+.dc-member.speaking .dc-avatar { box-shadow: 0 0 0 3px #30d158, 0 0 16px rgba(48, 209, 88, 0.45); transition-duration: 0.06s; }
+.dc-member.speaking .dc-name { color: var(--text); }
+.dc-name { flex: 1; min-width: 0; font-size: 16px; font-weight: 500; color: var(--muted); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.dc-flags { color: var(--red); display: flex; }
+
+/* unread DMs along the bottom */
+.dc-dms { flex: none; margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.dc-dms[hidden] { display: none; }
+.dc-dms-head { color: var(--muted); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+.dc-dm-list { display: flex; }
+.dc-dm { position: relative; flex: none; width: 40px; height: 40px; margin-right: 10px; padding: 0; border: none;
+  border-radius: 50%; background: none; cursor: pointer; animation: dc-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.dc-dm img { width: 40px; height: 40px; border-radius: 50%; display: block; background: var(--track); }
+.dc-dm-n { position: absolute; right: -4px; bottom: -3px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: #ff453a; color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+  border: 2px solid rgba(30, 30, 36, 1); }
+@keyframes dc-pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .dc-dm { animation: none; } }

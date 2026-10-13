@@ -1,0 +1,18 @@
+# Personal: your settings and layout (made from config.example.json / web/layout.default.json on first start),
+# and runtime data (Discord login token, logs)
+config.json
+web/layout.json
+data/
+*.log
+
+# Ultralight runtime: downloaded by install.ps1 (its licence doesn't allow redistributing it on its own)
+overlay/ultralight/
+
+# Build output and caches
+overlay/bin/
+overlay/obj/
+__pycache__/
+*.pyc
+
+# Throwaway test pages
+web/_*/

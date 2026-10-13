@@ -1,0 +1,8 @@
+{
+  "file": "index.html",
+  "title": "Desktop Hub",
+  "type": "web",
+  "preview": "preview.jpg",
+  "description": "Widget hub for the second monitor, served by desktop_hub/server.py on 127.0.0.1:8765",
+  "general": { "properties": {} }
+}

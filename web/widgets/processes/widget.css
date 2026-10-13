@@ -1,0 +1,17 @@
+/* segmented control, like iOS: a lighter thumb slides under the chosen option */
+.seg { position: relative; display: flex; padding: 2px; border-radius: 9px; background: var(--fill);
+  text-transform: none; letter-spacing: 0; }
+.seg-thumb { position: absolute; top: 2px; bottom: 2px; left: 2%; width: 48%; border-radius: 7px;
+  background: rgba(120, 120, 128, 0.42); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); }
+.seg-opt { position: relative; min-width: 62px; padding: 3px 10px; font-size: 12px; font-weight: 600; color: var(--muted);
+  transition: color 0.2s; }
+.seg-opt.on { color: var(--text); }
+
+.proc-list { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 4px; }
+.proc-row { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 11px; font-size: 14px; overflow: hidden; }
+.proc-bar { position: absolute; top: 0; bottom: 0; left: 0; width: 0; border-radius: 11px;
+  background: var(--accent); opacity: 0.16; }
+.proc-name { position: relative; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.proc-count { color: var(--faint); font-size: 12px; font-weight: 400; }
+.proc-val { position: relative; color: var(--muted); flex: none; }

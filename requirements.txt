@@ -1,0 +1,15 @@
+# Server and the system / Discord widgets
+psutil
+nvidia-ml-py
+websocket-client
+# Calendar widget (Google Calendar; icalendar + recurring-ical-events + requests for the read-only iCal link)
+google-api-python-client
+google-auth-oauthlib
+tzdata
+icalendar
+recurring-ical-events
+requests
+# Lights widget (Airam / Tuya WiFi bulbs) and tools/fetch_tuya_keys.py
+tinytuya
+tuya-device-sharing-sdk
+qrcode[pil]

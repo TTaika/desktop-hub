@@ -1,5 +1,5 @@
-"""Your Google Calendar, through the voice assistant's calendar tool, so both use the same login
-(voice_assistant/config/google_token.json) and read the same calendars.
+"""Your Google Calendar, through the calendar tool in assistant/tools/ (login in data/google_token.json), or the
+voice assistant's own copy when voice_assistant_dir is set, so both share one login and the same calendars.
 
 GET /api/calendar?view=day|week|month
   -> {"view", "start", "end", "today": "YYYY-MM-DD",
@@ -13,8 +13,9 @@ import sys
 import threading
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 
-from hub_config import NO_VOICE_ASSISTANT, voice_assistant_dir
+from hub_config import voice_assistant_dir
 
 CACHE_S = 300
 _lock = threading.Lock()
@@ -26,9 +27,9 @@ _ct = None
 def _tool():
     global _ct
     if _ct is None:
-        va = voice_assistant_dir()
-        if va not in sys.path:
-            sys.path.append(va)
+        va = voice_assistant_dir()             # its own copy and logins; else the copy in assistant/
+        if va and va not in sys.path:
+            sys.path.insert(0, va)
         from assistant.tools import calendar_tool
         _ct = calendar_tool
     return _ct
@@ -41,15 +42,20 @@ def _check_login(ct):
     if ct.backend() == "ics":
         return None
     if ct.backend() != "oauth":
-        return "The calendar isn't set up in the voice assistant."
+        return f"The calendar isn't set up: save your Google OAuth client as {cfg.GOOGLE_CREDENTIALS} (see README)."
     import json
     try:
         token = json.loads(cfg.GOOGLE_TOKEN.read_text(encoding="utf-8"))
     except (FileNotFoundError, ValueError):
         token = {}
     if not token.get("refresh_token"):
-        return "Calendar login missing: run  py -3.13 -m assistant.tools.calendar_tool --login  in voice_assistant."
+        return f"Calendar login missing: {_login_hint(cfg)}"
     return None
+
+
+def _login_hint(cfg) -> str:
+    folder = Path(cfg.__file__).resolve().parent.parent          # the project whose copy of the tool is in use
+    return f"in {folder} run  py -3.13 -m assistant.tools.calendar_tool --login"
 
 
 def _range(view: str, now: datetime):
@@ -93,8 +99,7 @@ def _load(view: str) -> dict:
         events, failed = ct.fetch_events(start, end)
     except Exception as e:
         if "invalid_grant" in str(e):            # Google expires logins of apps in "testing" mode after 7 days
-            return {"error": "The calendar login has expired. Log in again: in voice_assistant run  "
-                             "py -3.13 -m assistant.tools.calendar_tool --login"}
+            return {"error": f"The calendar login has expired. Log in again: {_login_hint(ct.config)}"}
         return {"error": f"Could not read the calendar: {e}"}
     colors = _calendar_colors(ct) if ct.backend() == "oauth" else {}
     return {
@@ -108,8 +113,6 @@ def _load(view: str) -> dict:
 
 
 def get(params: dict) -> dict:
-    if not voice_assistant_dir():
-        return {"error": NO_VOICE_ASSISTANT}
     view = params.get("view", "week")
     if view not in ("day", "week", "month"):
         return {"error": "view must be day, week or month"}

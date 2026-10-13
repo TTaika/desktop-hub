@@ -1,5 +1,6 @@
-"""The Airam (Tuya) bulbs, through the voice assistant's own lights tool, so both share
-config/devices.json, the saved scenes and its fixes for Tuya's stale replies.
+"""Airam / Tuya WiFi bulbs over the local network, through the lights tool in assistant/tools/ (bulbs in
+data/devices.json), or the voice assistant's own copy when voice_assistant_dir is set, so both share the bulbs
+and saved scenes.
 
 GET  /api/lights  -> {"lights": [{name, on, brightness, mode}], "scenes": [...], "colours": {...}}  (cached 4 s)
 POST /api/lights  {"name": "all", "state": "on"|"off"} or {"brightness": 1-100} or {"color_temp": "warm"}
@@ -9,7 +10,7 @@ import sys
 import threading
 import time
 
-from hub_config import NO_VOICE_ASSISTANT, voice_assistant_dir
+from hub_config import voice_assistant_dir
 
 _lock = threading.Lock()
 _cache = {"t": 0.0, "value": None}
@@ -19,9 +20,9 @@ _lt = None
 def _tool():
     global _lt
     if _lt is None:
-        va = voice_assistant_dir()
-        if va not in sys.path:
-            sys.path.append(va)
+        va = voice_assistant_dir()             # its own copy and logins; else the copy in assistant/
+        if va and va not in sys.path:
+            sys.path.insert(0, va)
         from assistant.tools import lights_tool
         _lt = lights_tool
     return _lt
@@ -41,15 +42,13 @@ def _status() -> dict:
     lt = _tool()
     devices = lt.load_devices()
     if not devices:
-        return {"error": "No bulbs set up (voice_assistant/config/devices.json is missing)."}
+        return {"error": "No bulbs set up: run  py -3.13 tools/fetch_tuya_keys.py <Smart Life user code>  (see README)."}
     st = lt.h_light_status(devices)
     return {"lights": st["lights"], "scenes": st["saved_scenes"], "colours": _colours(lt),
             "temps": ["warm", "neutral", "cool"]}
 
 
 def get(params: dict) -> dict:
-    if not voice_assistant_dir():
-        return {"error": NO_VOICE_ASSISTANT}
     with _lock:
         if _cache["value"] is None or time.monotonic() - _cache["t"] > 4:
             _cache["value"] = _status()
@@ -58,8 +57,6 @@ def get(params: dict) -> dict:
 
 
 def post(body: dict) -> dict:
-    if not voice_assistant_dir():
-        return {"error": NO_VOICE_ASSISTANT}
     lt = _tool()
     args = {k: body[k] for k in ("name", "state", "brightness", "color_temp", "color", "scene") if k in body}
     with _lock:

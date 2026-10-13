@@ -10,17 +10,18 @@ server.py (pythonw, ~60 MB RAM, 127.0.0.1:8765)
  ├─ web/                  the page: grid from layout.json, one folder per widget
  └─ providers/*.py        data sources -> /api/<name>
         system.py         CPU, RAM, GPUs (NVML), network, disk, top processes
-        lights.py         Airam/Tuya bulbs via voice_assistant's lights_tool (same devices.json + scenes)
+        lights.py         Airam/Tuya bulbs via assistant/tools/lights_tool.py
+assistant/                the voice assistant's lights and calendar tools, with settings from config.json
+tools/fetch_tuya_keys.py  gets the bulbs' local keys (Smart Life QR login) into data/devices.json
         discord.py        Discord via the local RPC socket (StreamKit's login): your call, the open chat, unread DMs
-        calendar.py       Google Calendar via voice_assistant's calendar_tool (same login and calendars)
+        calendar.py       Google Calendar via assistant/tools/calendar_tool.py
 wallpaper/                Wallpaper Engine project: a loader that frames http://127.0.0.1:8765/
 overlay/                  C# + Ultralight host that shows the page as a transparent overlay on monitor 2
 ```
 
 ## Setup
 
-Needs Windows, Python 3.13 (`py -3.13 -m pip install psutil nvidia-ml-py websocket-client`) and, for the overlay,
-the .NET 8 SDK.
+Needs Windows, Python 3.13 (`py -3.13 -m pip install -r requirements.txt`) and, for the overlay, the .NET 8 SDK.
 
 1. `powershell -ExecutionPolicy Bypass -File install.ps1`. This copies the wallpaper into Wallpaper Engine,
    adds Startup shortcuts, starts the server, downloads Ultralight (first time only), and builds and starts the overlay.
@@ -30,11 +31,21 @@ the .NET 8 SDK.
    **Open Wallpaper → Open from file** and pick `projects\myprojects\desktop_hub\index.html`.
 3. The first time, Discord shows an **Authorize** window. The token is kept in `data/discord_token.json`.
    To log out, delete that file.
-4. The **lights** and **calendar** widgets use a separate voice assistant project (its bulb setup and Google login).
-   Without it, leave `voice_assistant_dir` empty in `config.json` and those widgets say so.
+4. **Calendar** (optional): in Google Cloud Console, make a project, enable the Google Calendar API, create an
+   OAuth client ID of type *Desktop app* and save its JSON as `data/google_credentials.json`. Then log in once with
+   `py -3.13 -m assistant.tools.calendar_tool --login` in this folder. Set `"timezone"` in `config.json`
+   (e.g. `"Europe/Helsinki"`). Google expires the login after 7 days while the OAuth app is in "testing" mode;
+   set it to "In production" to keep it. Read-only alternative without Google Cloud: put the calendar's
+   "secret address in iCal format" in `calendar.ics_url`.
+5. **Lights** (optional, Airam / Tuya WiFi bulbs): `py -3.13 tools/fetch_tuya_keys.py <user code>` (the user code
+   is in the Smart Life app under Me → Settings → Account and Security). It writes the bulbs' local keys to
+   `data/devices.json`; the bulbs are then controlled on your network, without the cloud.
 
-Nothing personal is in the repository: your calendar and Discord data are read live and never saved, and the
-Discord token, logs, `config.json` and your layout are git-ignored.
+The lights and calendar tools in `assistant/tools/` come from a separate voice assistant project. If you have it,
+set `voice_assistant_dir` in `config.json` and the hub uses its copy, logins and bulbs instead.
+
+Nothing personal is in the repository: your calendar and Discord data are read live and never saved, and
+`data/` (Discord and Google logins, bulb keys, logs), `config.json` and your layout are git-ignored.
 
 Open http://127.0.0.1:8765/ in a browser to work on widgets with DevTools. The wallpaper reloads itself
 within about 4 s of any change under `web/`.
@@ -68,7 +79,7 @@ and highlights. `options` per widget:
 | system | `gpu` (part of the GPU's name, e.g. `"5060"`), `interval` (ms, default 2000) |
 | processes | `sort` (`"cpu"` / `"mem"`), `count` (rows, default 7), `interval` (ms, default 3000) |
 | lights | `name` (bulb or room, default `"all"`), `rows` (`["temps", "colours", "scenes"]`), `interval` (ms, default 10000). Also 2×1, where it shows two rows |
-| calendar | `view` (`"day"`, `"week"`, `"month"`), `locale`. Day and week are time grids (busy and free hours at a glance), month shows each day's busy hours as a strip; hover an event or a day for details. Reads Google Calendar through the voice assistant's login |
+| calendar | `view` (`"day"`, `"week"`, `"month"`), `locale`. Day and week are time grids (busy and free hours at a glance), month shows each day's busy hours as a strip; hover an event or a day for details. Needs the calendar setup above |
 | discord | `interval` (ms, default 400), `dms` (unread DMs along the bottom; click one to open it in Discord), `sound` (play `sounds/dm.wav` for a DM while in a call), `expire` (minutes before an unread DM is dropped, default 180) |
 | discord_chat | `text` (`small`, `normal`, `large`), `avatars`. The server channel open in Discord, found from the Discord window title; DMs can't be shown. Pictures show as thumbnails (gifs as a still frame); click one to open it in the browser |
 

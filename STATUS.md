@@ -3,7 +3,7 @@
 ## Done and working
 - Backend `server.py` (pythonw, starts from the Startup shortcut, ~60 MB RAM) with these providers:
   - system: CPU, RAM, GPUs, network, disk, processes
-  - lights: through voice_assistant's lights_tool
+  - lights, calendar: tools in assistant/ (this machine uses voice_assistant's copies via voice_assistant_dir)
   - discord: StreamKit RPC login, already authorized; the token is in `data/`
   - layout: the editor's backend
 - Widgets: clock, system, processes, discord (call + unread DMs), discord_chat, lights, calendar. Each one has `meta` for the editor.

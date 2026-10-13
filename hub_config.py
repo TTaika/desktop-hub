@@ -1,7 +1,6 @@
 """Settings shared by the server and the providers (config.json next to this file).
 
-config.json: {"port": 8765, "voice_assistant_dir": "C:/path/to/voice_assistant"}. The lights and calendar widgets
-use the voice assistant's tools and logins; leave voice_assistant_dir empty without one.
+config.json: see config.example.json and assistant/config.py.
 """
 import json
 import shutil
@@ -22,10 +21,8 @@ CONFIG = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 PORT = int(CONFIG.get("port", 8765))
 
 
-NO_VOICE_ASSISTANT = "This widget needs the voice assistant: set voice_assistant_dir in config.json"
-
-
 def voice_assistant_dir():
-    """The voice assistant's folder from config.json, or None when it isn't set up."""
+    """The voice assistant project from config.json, or None. When set, the lights and calendar widgets use its tools
+    and logins; otherwise the copies in assistant/ with the settings in config.json and the logins in data/."""
     va = CONFIG.get("voice_assistant_dir")
     return str(Path(va)) if va and (Path(va) / "assistant").is_dir() else None

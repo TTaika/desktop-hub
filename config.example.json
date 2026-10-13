@@ -1,4 +1,12 @@
 {
   "port": 8765,
+  "timezone": "UTC",
+  "calendar": {
+    "ids": [],
+    "ics_url": ""
+  },
+  "lights": {
+    "groups": {}
+  },
   "voice_assistant_dir": ""
 }

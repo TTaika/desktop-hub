@@ -1,13 +1,14 @@
 // Your Google Calendar (through the voice assistant's login): today, this week, or this month.
-// Day and week are time grids, so the free and busy hours show at a glance; month shows each day's busy hours
-// as a small strip. Hovering an event (or a day of the month) shows its details.
+// Day and week are time grids, so the free and busy hours show at a glance. Month lists each day's events by
+// name when the tile has room for them (3x2 and up, the whole screen included), and otherwise shows each day's
+// busy hours as a small strip. Hovering an event (or a day of the month) shows its details.
 // options (also set from the editor, see meta.settings): { view: "day" | "week" | "month", locale: "en-GB" }
 import { h, header, withDefaults } from "../../lib.js";
 
 export const css = true;
 export const meta = {
   name: "Calendar", description: "Today, this week or this month from Google Calendar", defaultSize: "2x2",
-  minSize: "2x1", maxSize: "4x4",
+  minSize: "2x1",                                  // no maxSize: it can take the whole screen
   settings: [
     { key: "view", label: "Show", type: "select", choices: [["day", "Today"], ["week", "This week"], ["month", "This month"]],
       default: "week" },
@@ -167,19 +168,48 @@ export function mount(el, { options, api, size }) {
     const heads = [];
     for (let i = 0; i < 7; i++)
       heads.push(h("span", { class: "cal-mh" }, addDays(start, i).toLocaleDateString(L, { weekday: "narrow" })));
+    const weeks = Math.round((end - start) / DAY / 7), fit = monthFit(weeks);
     const cells = [];
     for (let d = new Date(start); d < end; d = addDays(d, 1)) {
       const evs = onDay(list, d), all = evs.filter(e => e.all_day);
       const cell = h("div", { class: `cal-cell${d.getMonth() !== now.getMonth() ? " out" : ""}${dayKey(d) === dayKey(today) ? " today" : ""}${d < today ? " past" : ""}` },
         h("div", { class: "cal-ch" },
           h("span", { class: "cal-num num" }, String(d.getDate())),
-          h("span", { class: "cal-ad" }, all.slice(0, 3).map(e => h("i", { style: { background: color(e) } })))),
-        h("div", { class: "cal-strip" }, blocks(d, evs, range, now, false, 3)));
+          fit ? null : h("span", { class: "cal-ad" }, all.slice(0, 3).map(e => h("i", { style: { background: color(e) } })))),
+        fit ? names(evs, fit, now) : h("div", { class: "cal-strip" }, blocks(d, evs, range, now, false, 3)));
       cell._events = evs;
       cell._day = d;
       cells.push(cell);
     }
-    return [h("div", { class: "cal-mheads" }, heads), h("div", { class: "cal-month", style: { gridTemplateRows: `repeat(${cells.length / 7}, 1fr)` } }, cells)];
+    return [h("div", { class: "cal-mheads" }, heads),
+      h("div", { class: `cal-month${fit ? " named" : ""}${fit && fit.big ? " big" : ""}`,
+        style: { gridTemplateRows: `repeat(${weeks}, minmax(0, 1fr))` } }, cells)];
+  }
+
+  // Whether a month day has room for event names, from the size the tile has on screen: null when it doesn't
+  // (a 2x2 tile, say), else { lines, time, big }. Times are added once a day is wide enough for them.
+  function monthFit(weeks) {
+    const W = body.clientWidth, H = body.clientHeight;
+    if (!W || !H) return null;
+    const cellW = (W - 6 * 3) / 7, cellH = (H - 17 - 3 * (weeks - 1)) / weeks;
+    const big = cellW >= 170 && cellH >= 110, lineH = big ? 21 : 16;
+    const lines = Math.floor((cellH - (big ? 37 : 27) + 2) / lineH);    // cell padding, day number, list margin
+    return cellW >= 64 && lines >= 1 ? { lines, time: cellW >= (big ? 150 : 110), big } : null;
+  }
+
+  // A month day's events by name: all-day ones as coloured bars first, then timed ones in order. When they
+  // don't all fit, the last line says how many more there are (hovering the day lists them all).
+  function names(evs, fit, now) {
+    const sorted = evs.slice().sort((a, b) => (b.all_day - a.all_day) || (a.s - b.s));
+    const shown = sorted.length > fit.lines ? fit.lines - 1 : sorted.length;
+    return h("div", { class: "cal-names" },
+      sorted.slice(0, shown).map(e => e.all_day
+        ? h("div", { class: "cal-nm all", style: { background: color(e) } }, e.title)
+        : h("div", { class: `cal-nm${e.e <= now ? " past" : ""}` },
+            h("i", { style: { background: color(e) } }),
+            fit.time ? h("span", { class: "cal-nt num" }, time(e.s)) : null,
+            h("span", { class: "cal-nn" }, e.title))),
+      sorted.length > shown ? h("div", { class: "cal-nm more" }, `+${sorted.length - shown} more`) : null);
   }
 
   // Details on hover: an event's time, calendar, place and notes, or every event of a month day.
@@ -251,9 +281,13 @@ export function mount(el, { options, api, size }) {
   }, { view: o.view });
   // The time line and the dimming of past events move on with the clock, between data updates
   const tick = setInterval(() => {
-    if (!el.isConnected) { clearInterval(tick); tip.remove(); }
+    if (!el.isConnected) { clearInterval(tick); tip.remove(); window.removeEventListener("resize", onResize); }
     else if (!hovered) render();
   }, 60000);
+  // whether month days have room for event names depends on the tile's size on screen
+  let resizeTimer;
+  const onResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => el.isConnected && render(), 150); };
+  if (o.view === "month") window.addEventListener("resize", onResize);
 }
 
 function duration(ms) {

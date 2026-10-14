@@ -75,6 +75,27 @@
 .cal-strip .cal-block, .cal-strip .cal-block.short { padding: 0; border-radius: 2px; min-height: 2px; }
 .cal-strip .cal-block.past { opacity: 1; }
 
+/* month with room for names (3x2 and up): each day lists its events */
+.cal-names { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 2px; margin-top: 3px; overflow: hidden; }
+.cal-nm { display: flex; align-items: center; flex: none; height: 14px; font-size: 11px; line-height: 14px;
+  white-space: nowrap; overflow: hidden; }
+.cal-nm i { flex: none; width: 6px; height: 6px; border-radius: 50%; margin: 0 4px 0 1px; }
+.cal-nm.all { display: block; padding: 0 5px; border-radius: 4px; color: #fff; font-weight: 600; text-overflow: ellipsis; }
+.cal-nm.past { opacity: 0.45; }
+.cal-nm.more { color: var(--muted); font-weight: 600; padding-left: 2px; }
+.cal-nt { flex: none; margin-right: 4px; color: var(--muted); }
+.cal-nn { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cal-month.named .cal-cell { padding: 3px 4px 4px; }
+
+/* ... and at full-screen sizes, bigger type */
+.cal-month.big .cal-ch { height: 24px; }
+.cal-month.big .cal-num { font-size: 14px; min-width: 24px; height: 24px; line-height: 24px; border-radius: 12px; }
+.cal-month.big .cal-cell { padding: 4px 6px 6px; border-radius: 8px; }
+.cal-month.big .cal-nm { height: 19px; font-size: 13.5px; line-height: 19px; }
+.cal-month.big .cal-nm i { width: 8px; height: 8px; margin-right: 6px; }
+.cal-month.big .cal-nm.all { padding: 0 7px; border-radius: 5px; }
+.cal-month.big .cal-nt { margin-right: 6px; }
+
 /* details on hover */
 .cal-tip { position: fixed; z-index: 100; width: 270px; padding: 10px 12px; border-radius: 12px; pointer-events: none;
   background: rgba(30, 30, 35, 0.97); border: 1px solid rgba(255, 255, 255, 0.08); border-top-color: rgba(255, 255, 255, 0.14);

@@ -35,6 +35,10 @@ export async function start(lay, ents) {
   toastEl = h("div", { class: "edit-toast" });
   document.body.append(toastEl);
 
+  fitStage();
+  window.addEventListener("resize", fitStage);
+  new MutationObserver(fitStage).observe(drawer, { attributes: true, attributeFilter: ["class"] });
+
   window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
   window.addEventListener("keydown", e => {
     if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); save(); }
@@ -44,10 +48,11 @@ export async function start(lay, ents) {
 
 // ----------------------------------------------------------------- geometry --
 function metrics() {
-  const r = grid.getBoundingClientRect(), cs = getComputedStyle(grid);
-  const pl = parseFloat(cs.paddingLeft), pr = parseFloat(cs.paddingRight);
-  const pt = parseFloat(cs.paddingTop), pb = parseFloat(cs.paddingBottom);
-  const gx = parseFloat(cs.columnGap) || 0, gy = parseFloat(cs.rowGap) || 0;
+  // the grid is scaled while editing (fitStage), so the CSS lengths shrink by the same factor on screen
+  const r = grid.getBoundingClientRect(), cs = getComputedStyle(grid), k = r.width / grid.offsetWidth || 1;
+  const pl = parseFloat(cs.paddingLeft) * k, pr = parseFloat(cs.paddingRight) * k;
+  const pt = parseFloat(cs.paddingTop) * k, pb = parseFloat(cs.paddingBottom) * k;
+  const gx = (parseFloat(cs.columnGap) || 0) * k, gy = (parseFloat(cs.rowGap) || 0) * k;
   return { x0: r.left + pl, y0: r.top + pt, gx, gy,
     cw: (r.width - pl - pr - gx * (cols - 1)) / cols, ch: (r.height - pt - pb - gy * (rows - 1)) / rows };
 }
@@ -72,6 +77,19 @@ function firstFree(s) {
     for (let col = 1; col <= cols - s.w + 1; col++)
       if (fits({ col, row, w: s.w, h: s.h })) return { col, row };
   return null;
+}
+
+// Shrinks the whole screen (grid and edit overlay together) into the space the toolbar and the open drawer
+// leave free, so neither covers a tile's buttons. It's a scale, not a resize, so every widget keeps the exact
+// layout it has on the wallpaper. The grid's own padding may tuck under the toolbar; the tiles never do.
+function fitStage() {
+  const W = innerWidth, H = innerHeight, pad = parseFloat(getComputedStyle(grid).paddingTop) || 0;
+  const top = Math.max(0, document.querySelector(".edit-toolbar").getBoundingClientRect().bottom + 10 - pad);
+  const right = drawer.classList.contains("open") ? Math.max(0, drawer.offsetWidth + 10 - pad) : 0;
+  const s = Math.min(1, (W - right) / W, (H - top) / H);
+  const x = (W - right - W * s) / 2, y = top + (H - top - H * s) / 2;
+  for (const el of [grid, overlayGrid]) el.style.transform = s < 1 ? `translate(${x}px, ${y}px) scale(${s})` : "";
+  document.body.classList.toggle("drawer-open", drawer.classList.contains("open"));
 }
 
 // Widgets placed automatically (no col/row) get the position they have on screen now.

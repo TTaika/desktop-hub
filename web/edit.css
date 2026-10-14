@@ -1,5 +1,7 @@
 /* Layout editor (?edit) */
 body.editing .tile { transition: none; }
+/* scaled into the space the toolbar and drawer leave free (fitStage in edit.js) */
+body.editing #grid, .edit-grid { transform-origin: 0 0; transition: transform 0.25s ease; }
 
 .edit-grid {
   position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 20;
@@ -56,6 +58,8 @@ body.editing .tile { transition: none; }
   background: rgba(16, 18, 28, 0.94); border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); font-size: 14px;
 }
+body.drawer-open .edit-toolbar { left: calc((100% - 380px) / 2); }   /* centred over the free space */
+.edit-toolbar { transition: left 0.25s ease; max-width: calc(100% - 20px); }
 .et-title { font-weight: 600; }
 .et-status { color: var(--muted); font-size: 13px; margin-right: 8px; }
 .et-status.dirty { color: var(--warn); }

@@ -225,6 +225,7 @@ function buildToolbar() {
   document.body.append(h("div", { class: "edit-toolbar" },
     h("span", { class: "et-title" }, "Editing layout"), statusEl,
     h("button", { class: "et-btn", onclick: () => drawer.classList.toggle("open") }, "＋ Widgets & background"),
+    h("button", { class: "et-btn", onclick: () => { drawerShow("presets"); drawer.classList.add("open"); } }, "Presets"),
     h("button", { class: "et-btn", onclick: () => { if (!dirty || confirm("Throw away your changes?")) { dirty = false; location.reload(); } } }, "Discard"),
     h("button", { class: "et-btn", onclick: save }, "Save"),
     h("button", { class: "et-btn primary", onclick: async () => { if (!dirty || await save()) location.href = "/"; } }, "Done")));
@@ -260,10 +261,10 @@ async function save() {
 
 // ------------------------------------------------------------------ drawer --
 function buildDrawer(backgrounds) {
-  const tabs = drawerTabs = { widgets: widgetBank(), background: backgroundPicker(backgrounds), settings: null };
-  const names = { widgets: "Widgets", background: "Background", settings: "Settings" };
+  const tabs = drawerTabs = { widgets: widgetBank(), background: backgroundPicker(backgrounds), presets: presetsPanel(), settings: null };
+  const names = { widgets: "Widgets", background: "Background", presets: "Presets", settings: "Settings" };
   const tabBtns = Object.keys(tabs).map(k => h("button", { class: "ed-tab", "data-tab": k, onclick: () => show(k) }, names[k]));
-  settingsTab = tabBtns[2];
+  settingsTab = tabBtns.find(b => b.dataset.tab === "settings");
   settingsTab.hidden = true;                // appears once a tile's ⚙ is clicked
   const body = h("div", { class: "ed-body" });
   const show = drawerShow = k => {
@@ -358,6 +359,127 @@ function backgroundPicker(backgrounds) {
     h("div", { class: "segs" }, styleBtns),
     h("div", { class: "ed-label" }, "Darken background ", dimVal), dim,
     h("div", { class: "ed-label" }, "Your Wallpaper Engine videos"), cards);
+}
+
+// ----------------------------------------------------------------- presets --
+// Whole layouts saved in slots 1-9 and 0. Hotkey + that number switches the hub to one from anywhere, a
+// full-screen game included: the server registers the keys with Windows (providers/presets.py).
+const SLOTS = [..."1234567890"];
+const keyName = hotkey => hotkey.split("+").map(k => k[0].toUpperCase() + k.slice(1)).join(" + ");
+
+function presetsPanel() {
+  const panel = h("div", { class: "ed-list" });
+
+  const call = async (body, ok) => {
+    try {
+      const r = await api.post("presets", body);
+      if (r.error) { toast(r.error, true); return false; }
+      if (ok) toast(ok);
+    } catch (e) {
+      toast("Could not reach the hub backend", true);
+      return false;
+    }
+    refresh();
+    return true;
+  };
+  const current = () => ({ ...layout, widgets: entries.map(e => e.w) });
+
+  async function saveTo(slot, p) {
+    if (p && !confirm(`Replace "${p.name}" with the layout you see now?`)) return;
+    const name = prompt("Name for this preset", p ? p.name : `Preset ${slot}`);
+    if (name === null) return;
+    await call({ action: "save", slot, name, layout: current() }, `Saved to ${slot}`);
+  }
+  async function load(slot) {
+    if (dirty && !confirm("Throw away your unsaved changes?")) return;
+    if (await call({ action: "load", slot })) { dirty = false; location.reload(); }
+  }
+  async function rename(slot, p) {
+    const name = prompt("Rename preset", p.name);
+    if (name !== null) await call({ action: "rename", slot, name });
+  }
+  async function remove(slot, p) {
+    if (confirm(`Delete "${p.name}"?`)) await call({ action: "delete", slot }, `Deleted "${p.name}"`);
+  }
+  // Empties the grid (the background and tile style stay) so a new preset can be built from scratch.
+  function blank() {
+    if (entries.length && !confirm("Clear all widgets to start a new preset? Discard brings them back until you save.")) return;
+    entries.slice().forEach(removeEntry);
+    drawerShow("widgets");
+    toast("Blank layout. Add widgets, then save it to a slot in Presets.");
+  }
+
+  async function refresh() {
+    let info;
+    try { info = await api.get("presets"); } catch (e) {
+      panel.replaceChildren(h("p", { class: "ed-hint" }, "Could not reach the hub backend."));
+      return;
+    }
+    const hotkeyBtn = h("button", { class: "pr-hotkey", title: "Click, then hold the keys you want",
+      onclick: () => recordHotkey(hotkeyBtn, refresh) }, `${keyName(info.hotkey)} + number`);
+    panel.replaceChildren(
+      h("p", { class: "ed-hint" }, "Save whole layouts in slots and switch between them with the hotkey and the slot's number, ",
+        "from any window, even a full-screen game. Number row and numpad both work."),
+      h("button", { class: "pr-new", onclick: blank }, "＋ New preset from a blank layout"),
+      h("div", { class: "ed-label" }, "Hotkey"), hotkeyBtn,
+      h("div", { class: "ed-label" }, "Slots"),
+      ...SLOTS.map(slot => {
+        const p = info.presets[slot];
+        const taken = info.taken.includes(slot);
+        return h("div", { class: `pr-row${p ? "" : " empty"}${info.active === slot ? " active" : ""}` },
+          h("span", { class: "pr-key" }, slot),
+          h("div", { class: "pr-info" },
+            p ? h("button", { class: "pr-name", title: "Rename", onclick: () => rename(slot, p) }, p.name)
+              : h("span", { class: "pr-name" }, "Empty"),
+            h("span", { class: `pr-sub${taken ? " bad" : ""}` },
+              !p ? "" : taken ? "Hotkey taken by another program" : `${p.widgets} widget${p.widgets === 1 ? "" : "s"}`)),
+          p ? h("button", { class: "eo-btn", onclick: () => load(slot) }, "Load") : null,
+          h("button", { class: "eo-btn", title: "Save the layout you see now in this slot", onclick: () => saveTo(slot, p) },
+            p ? "Overwrite" : "Save here"),
+          p ? h("button", { class: "eo-btn eo-del", title: "Delete", onclick: () => remove(slot, p) }, "✕") : null);
+      }));
+  }
+
+  refresh();
+  return panel;
+}
+
+// Click the button, hold the modifiers you want (a number key too if you like) and let go. Escape cancels.
+function recordHotkey(btn, done) {
+  if (btn.classList.contains("recording")) return;
+  const idle = "Hold the keys, then let go…";
+  let best = [];
+  const held = e => ["ctrl", "alt", "shift"].filter(k => e[`${k}Key`]);
+  const stop = e => { e.preventDefault(); e.stopImmediatePropagation(); };
+  const down = e => {
+    stop(e);
+    if (e.key === "Escape") return finish(null);
+    const keys = held(e);
+    if (keys.length >= best.length) best = keys;
+    btn.textContent = best.length ? `${keyName(best.join("+"))} + …` : idle;
+  };
+  const up = e => {
+    stop(e);
+    if (best.length && held(e).length < best.length) finish(best.join("+"));
+  };
+  async function finish(hotkey) {
+    window.removeEventListener("keydown", down, true);
+    window.removeEventListener("keyup", up, true);
+    btn.classList.remove("recording");
+    if (hotkey) {
+      try {
+        const r = await api.post("presets", { action: "hotkey", hotkey });
+        if (r.error) toast(r.error, true);
+        else if (hotkey === "ctrl+alt") toast("Ctrl + Alt is AltGr on many keyboards, so typing @ or { could switch presets", true);
+        else toast(`Hotkey: ${keyName(hotkey)} + number`);
+      } catch (e) { toast("Could not reach the hub backend", true); }
+    }
+    setTimeout(done, 300);                   // the server re-registers the keys on its own thread
+  }
+  btn.textContent = idle;
+  btn.classList.add("recording");
+  window.addEventListener("keydown", down, true);
+  window.addEventListener("keyup", up, true);
 }
 
 // ---------------------------------------------------------------- settings --

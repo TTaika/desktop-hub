@@ -115,6 +115,25 @@ input[type="range"] { width: 100%; accent-color: #8ab4ff; }
 .edit-toast.show { opacity: 1; transform: translate(-50%, 0); }
 .edit-toast.bad { border-color: var(--bad); color: #ffd0d5; }
 
+/* presets */
+.pr-hotkey { padding: 10px 14px; border-radius: 12px; text-align: left; font-weight: 600;
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.08); }
+.pr-hotkey:hover { background: rgba(255, 255, 255, 0.12); }
+.pr-hotkey.recording { border-color: #8ab4ff; color: #8ab4ff; }
+.pr-new { padding: 10px 14px; border-radius: 12px; background: #8ab4ff; color: #0b1430; font-weight: 600; }
+.pr-new:hover { background: #a3c4ff; }
+.pr-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05); border: 2px solid transparent; }
+.pr-row.active { border-color: #8ab4ff; }
+.pr-row.empty .pr-name { color: var(--faint); font-weight: 400; }
+.pr-key { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pr-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.pr-name { max-width: 100%; padding: 0; font-weight: 600; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button.pr-name:hover { text-decoration: underline; }
+.pr-sub { color: var(--muted); font-size: 12px; }
+.pr-sub.bad { color: var(--bad); }
 
 /* widget settings (⚙) */
 .st-field .ed-label { margin-bottom: 8px; }

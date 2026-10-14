@@ -34,15 +34,26 @@ ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
 ALLOWED_ORIGINS = {f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"}
 
 _rev = {"t": 0.0, "value": 0}
+LAYOUT_FILES = {WEB / "layout.json", WEB / "layout.tmp"}
 
 
 def web_rev() -> int:
-    """Newest modification time under web/, so open pages reload themselves after an edit. Cached 2 s."""
+    """Newest modification time under web/, so open pages reload themselves after an edit. Cached 2 s.
+    layout.json is left out: it has layout_rev, and pages swap a new layout in place without reloading."""
     now = time.monotonic()
     if now - _rev["t"] > 2:
-        _rev["value"] = int(max((p.stat().st_mtime for p in WEB.rglob("*") if p.is_file()), default=0))
+        _rev["value"] = int(max((p.stat().st_mtime for p in WEB.rglob("*") if p.is_file() and p not in LAYOUT_FILES),
+                                default=0))
         _rev["t"] = now
     return _rev["value"]
+
+
+def layout_rev() -> int:
+    """layout.json's modification time; it changes on a save in the editor or a preset hotkey. Not cached."""
+    try:
+        return (WEB / "layout.json").stat().st_mtime_ns
+    except OSError:
+        return 0
 
 
 def load_providers():
@@ -95,7 +106,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlparse(self.path)
         if url.path == "/api/health":     # read by the Wallpaper Engine loader page, which has a file:// origin
-            return self._json(200, {"ok": True, "web_rev": web_rev()}, cors=True)
+            return self._json(200, {"ok": True, "web_rev": web_rev(), "layout_rev": layout_rev()}, cors=True)
         if not self._trusted():
             return self._json(403, {"error": "forbidden"})
         if url.path.startswith("/api/"):

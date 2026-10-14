@@ -15,6 +15,7 @@ assistant/                the voice assistant's lights and calendar tools, with 
 tools/fetch_tuya_keys.py  gets the bulbs' local keys (Smart Life QR login) into data/devices.json
         discord.py        Discord via the local RPC socket (StreamKit's login): your call, the open chat, unread DMs
         calendar.py       Google Calendar via assistant/tools/calendar_tool.py
+        presets.py        saved layouts, and the global hotkey + number that switches between them
 wallpaper/                Wallpaper Engine project: a loader that frames http://127.0.0.1:8765/
 overlay/                  C# + Ultralight host that shows the page as a transparent overlay on monitor 2
 ```
@@ -48,7 +49,7 @@ Nothing personal is in the repository: your calendar and Discord data are read l
 `data/` (Discord and Google logins, bulb keys, logs), `config.json` and your layout are git-ignored.
 
 Open http://127.0.0.1:8765/ in a browser to work on widgets with DevTools. The wallpaper reloads itself
-within about 4 s of any change under `web/`.
+within a few seconds of any change under `web/`.
 
 ## Editing the layout
 
@@ -58,7 +59,25 @@ Open **http://127.0.0.1:8765/?edit** in a browser. For the true look, use full s
 - **+ Widgets & background** opens a drawer with two tabs:
   - **Widgets:** drag a widget onto the grid, or click it to drop it in the first free space.
   - **Background:** pick one of your Wallpaper Engine videos, set how much to darken it, and choose the tile style for all widgets.
-- **Save** (Ctrl+S) writes `layout.json`, and the wallpaper picks up the change within a few seconds. **Done** saves and leaves edit mode.
+- **Save** (Ctrl+S) writes `layout.json`, and the wallpaper switches to it within about a second. **Done** saves and leaves edit mode.
+
+## Presets and the hotkey
+
+**Presets** in the editor's toolbar has ten slots, 1–9 and 0. **Save here** stores the layout you see (widgets,
+background and tile style) in a slot. **Load** switches to it, and clicking a preset's name renames it.
+**New preset from a blank layout** clears the widgets so you can start over (Discard brings them back), then
+add widgets and save the result to a slot.
+
+Press the hotkey with a slot's number, **Ctrl + Shift + 1** by default, to switch the hub to that preset from any
+window. This includes a full-screen game, so you don't need to alt-tab. The number row and the numpad both work. To change the
+hotkey, click it in the Presets tab, hold the keys you want (Ctrl and/or Alt, optionally Shift) and let go.
+Ctrl + Alt is AltGr on Finnish and many other keyboards, so with it, typing @ or { would switch presets.
+
+The server registers the keys with Windows (`providers/presets.py`), so they work while the hub's own windows are
+in the background. Windows then gives that key combination to the hub instead of the focused window. Many games, League of
+Legends among them, switch such hotkeys off while they have the focus. For those, the server also checks which
+keys are held every 25 ms. It only reads the keyboard state and never touches the game, but the game also sees the
+keypress, so pick a combination the game doesn't use. Only slots that have a preset are registered. If another program already has a combination, the slot says so. Presets are kept in `data/presets.json`.
 
 A widget's name, description and allowed sizes come from `export const meta` in its `widget.js`.
 

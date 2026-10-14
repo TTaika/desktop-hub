@@ -51,36 +51,40 @@ def _background(bg):
     return out
 
 
-def post(body: dict) -> dict:
-    new = body.get("layout")
+def check(new) -> dict:
+    """A clean copy of a layout from the editor (or a saved preset), or ValueError saying what is wrong."""
     if not isinstance(new, dict) or not isinstance(new.get("widgets"), list):
-        return {"error": "layout with a widgets list expected"}
+        raise ValueError("layout with a widgets list expected")
+    old = load_layout()
+    cols = _int(new.get("columns", old.get("columns", 8)), 1, 24, "columns")
+    rows = _int(new.get("rows", old.get("rows", 4)), 1, 24, "rows")
+    types = set(widget_types())
+    widgets = []
+    for w in new["widgets"]:
+        if not isinstance(w, dict) or w.get("type") not in types:
+            raise ValueError(f"unknown widget: {w.get('type') if isinstance(w, dict) else w}")
+        m = SIZE.match(str(w.get("size", "2x2")))
+        if not m:
+            raise ValueError(f"bad size for {w['type']}")
+        cw, ch = int(m[1]), int(m[2])
+        if "col" in w:
+            _int(w["col"], 1, cols - cw + 1, f"{w['type']} column")
+        if "row" in w:
+            _int(w["row"], 1, rows - ch + 1, f"{w['type']} row")
+        if "style" in w and w["style"] not in STYLES:
+            raise ValueError(f"bad style for {w['type']}")
+        widgets.append({k: w[k] for k in WIDGET_KEYS if k in w})
+    return {"columns": cols, "rows": rows,
+            "padding": str(new.get("padding", old.get("padding", "32px"))),
+            "gap": str(new.get("gap", old.get("gap", "20px"))),
+            "background": _background(new.get("background")),
+            "tile_style": new.get("tile_style") if new.get("tile_style") in STYLES else "default",
+            "widgets": widgets}
+
+
+def post(body: dict) -> dict:
     try:
-        old = load_layout()
-        cols = _int(new.get("columns", old.get("columns", 8)), 1, 24, "columns")
-        rows = _int(new.get("rows", old.get("rows", 4)), 1, 24, "rows")
-        types = set(widget_types())
-        widgets = []
-        for w in new["widgets"]:
-            if not isinstance(w, dict) or w.get("type") not in types:
-                raise ValueError(f"unknown widget: {w.get('type') if isinstance(w, dict) else w}")
-            m = SIZE.match(str(w.get("size", "2x2")))
-            if not m:
-                raise ValueError(f"bad size for {w['type']}")
-            cw, ch = int(m[1]), int(m[2])
-            if "col" in w:
-                _int(w["col"], 1, cols - cw + 1, f"{w['type']} column")
-            if "row" in w:
-                _int(w["row"], 1, rows - ch + 1, f"{w['type']} row")
-            if "style" in w and w["style"] not in STYLES:
-                raise ValueError(f"bad style for {w['type']}")
-            widgets.append({k: w[k] for k in WIDGET_KEYS if k in w})
-        layout = {"columns": cols, "rows": rows,
-                  "padding": str(new.get("padding", old.get("padding", "32px"))),
-                  "gap": str(new.get("gap", old.get("gap", "20px"))),
-                  "background": _background(new.get("background")),
-                  "tile_style": new.get("tile_style") if new.get("tile_style") in STYLES else "default",
-                  "widgets": widgets}
+        layout = check(body.get("layout"))
     except ValueError as e:
         return {"error": str(e)}
     save_layout(layout)

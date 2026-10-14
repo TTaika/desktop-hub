@@ -80,15 +80,26 @@ document.addEventListener("visibilitychange", () => {
   if (v) document.hidden ? v.pause() : v.play().catch(() => {});
 });
 
-async function main() {
-  const layout = await (await fetch("layout.json", { cache: "no-store" })).json();
+const fetchLayout = async () => (await fetch("layout.json", { cache: "no-store" })).json();
+let shown = null;                             // { layout, entries } on screen now
+
+// Builds the grid for a layout, replacing whatever is shown. The background is kept when it is the same, so a
+// video doesn't restart on a preset switch.
+function render(layout) {
+  if (shown) shown.entries.forEach(e => unmountWidget(e.tile));
   const root = document.documentElement.style;
   root.setProperty("--cols", layout.columns || 8);
   root.setProperty("--rows", layout.rows || 4);
-  if (layout.padding) root.setProperty("--pad", layout.padding);
-  if (layout.gap) root.setProperty("--gap", layout.gap);
-  setBackground(layout.background);
-  const entries = layout.widgets.map(w => ({ w, tile: mountWidget(w, layout) }));
+  layout.padding ? root.setProperty("--pad", layout.padding) : root.removeProperty("--pad");
+  layout.gap ? root.setProperty("--gap", layout.gap) : root.removeProperty("--gap");
+  if (!shown || JSON.stringify(layout.background) !== JSON.stringify(shown.layout.background)) setBackground(layout.background);
+  shown = { layout, entries: layout.widgets.map(w => ({ w, tile: mountWidget(w, layout) })) };
+  return shown.entries;
+}
+
+async function main() {
+  const layout = await fetchLayout();
+  const entries = render(layout);
   if (editing) (await import("./edit.js")).start(layout, entries);
   else document.body.append(h("button", { class: "hub-settings press", title: "Edit layout", onclick: openEditor }, icon("gear", 16)));
 }
@@ -100,16 +111,19 @@ function openEditor() {
   else location.href = "/?edit";
 }
 
-// Reload when a file under web/ changes, so edits show up on the wallpaper without touching it.
+// Reload when a file under web/ changes, so edits show up on the wallpaper without touching it. A new
+// layout.json (editor save, preset hotkey) is swapped in without a reload, within about a second.
 // Not in the editor, where it would throw away unsaved changes.
-let rev = null;
+let rev = null, layoutRev = null;
 if (!editing) setInterval(async () => {
   if (document.hidden) return;
   try {
-    const { web_rev } = await api.get("health");
-    if (rev !== null && web_rev !== rev) location.reload();
-    rev = web_rev;
+    const health = await api.get("health");
+    if (rev !== null && health.web_rev !== rev) return location.reload();
+    if (layoutRev !== null && health.layout_rev !== layoutRev) render(await fetchLayout());
+    rev = health.web_rev;
+    layoutRev = health.layout_rev;
   } catch { /* backend restarting */ }
-}, 4000);
+}, 1000);
 
 main();

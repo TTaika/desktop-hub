@@ -116,6 +116,12 @@ static class UL
     [DllImport(Lib)] public static extern IntPtr ulCreateScrollEvent(int type, int dx, int dy);
     [DllImport(Lib)] public static extern void ulDestroyScrollEvent(IntPtr evt);
 
+    public const int KeyUp = 1, RawKeyDown = 2, Char = 3;
+    [DllImport(Lib)] public static extern IntPtr ulCreateKeyEventWindows(int type, UIntPtr wParam, IntPtr lParam,
+                                                                          [MarshalAs(UnmanagedType.I1)] bool isSystemKey);
+    [DllImport(Lib)] public static extern void ulDestroyKeyEvent(IntPtr evt);
+    [DllImport(Lib)] public static extern void ulViewFireKeyEvent(IntPtr view, IntPtr evt);
+
     [DllImport(Lib)] public static extern uint ulSurfaceGetWidth(IntPtr surface);
     [DllImport(Lib)] public static extern uint ulSurfaceGetHeight(IntPtr surface);
     [DllImport(Lib)] public static extern uint ulSurfaceGetRowBytes(IntPtr surface);
@@ -139,13 +145,16 @@ static class Win
 {
     public const int WS_POPUP = unchecked((int)0x80000000);
     public const int WS_EX_LAYERED = 0x80000, WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x8000000;
-    public const int GWLP_HWNDPARENT = -8;
+    public const int GWLP_HWNDPARENT = -8, GWL_EXSTYLE = -20;
     public const int SW_SHOWNOACTIVATE = 4;
-    public const uint WM_DESTROY = 0x2, WM_SETCURSOR = 0x20, WM_MOUSEACTIVATE = 0x21, WM_TIMER = 0x113,
+    public const uint WM_DESTROY = 0x2, WM_ACTIVATE = 0x6, WM_SETCURSOR = 0x20, WM_MOUSEACTIVATE = 0x21, WM_TIMER = 0x113,
+        WM_KEYDOWN = 0x100, WM_KEYUP = 0x101, WM_CHAR = 0x102, WM_SYSKEYDOWN = 0x104, WM_SYSKEYUP = 0x105, WM_SYSCHAR = 0x106,
         WM_MOUSEMOVE = 0x200, WM_LBUTTONDOWN = 0x201, WM_LBUTTONUP = 0x202, WM_RBUTTONDOWN = 0x204,
         WM_RBUTTONUP = 0x205, WM_MBUTTONDOWN = 0x207, WM_MBUTTONUP = 0x208, WM_MOUSEWHEEL = 0x20A,
         WM_MOUSELEAVE = 0x2A3;
-    public const int MA_NOACTIVATE = 3, HTCLIENT = 1;
+    public const int MA_ACTIVATE = 1, MA_NOACTIVATE = 3, HTCLIENT = 1;
+    public static readonly IntPtr HWND_BOTTOM = new(1);
+    public const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10;
     public const int IDC_ARROW = 32512, IDC_HAND = 32649;
 
     public delegate IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -184,6 +193,9 @@ static class Win
     [DllImport("user32")] public static extern IntPtr SetTimer(IntPtr hwnd, IntPtr id, uint ms, IntPtr proc);
     [DllImport("user32", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindow(string cls, string title);
     [DllImport("user32")] public static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr value);
+    [DllImport("user32")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32")] public static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int w, int h, uint flags);
     [DllImport("user32")] public static extern IntPtr LoadCursor(IntPtr instance, IntPtr name);
     [DllImport("user32")] public static extern IntPtr SetCursor(IntPtr cursor);
     [DllImport("user32")] public static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT tme);

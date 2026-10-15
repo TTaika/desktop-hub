@@ -8,5 +8,6 @@
   "lights": {
     "groups": {}
   },
-  "voice_assistant_dir": ""
+  "voice_assistant_dir": "",
+  "assistant_url": "http://127.0.0.1:8766"
 }

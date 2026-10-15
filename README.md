@@ -16,6 +16,7 @@ tools/fetch_tuya_keys.py  gets the bulbs' local keys (Smart Life QR login) into 
         discord.py        Discord via the local RPC socket (StreamKit's login): your call, the open chat, unread DMs
         calendar.py       Google Calendar via assistant/tools/calendar_tool.py
         presets.py        saved layouts, and the global hotkey + number that switches between them
+        assistant.py      the voice assistant (Clanker) through its local API: conversation, typed questions, approvals
 wallpaper/                Wallpaper Engine project: a loader that frames http://127.0.0.1:8765/
 overlay/                  C# + Ultralight host that shows the page as a transparent overlay on monitor 2
 ```
@@ -41,6 +42,11 @@ Needs Windows, Python 3.13 (`py -3.13 -m pip install -r requirements.txt`) and, 
 5. **Lights** (optional, Airam / Tuya WiFi bulbs): `py -3.13 tools/fetch_tuya_keys.py <user code>` (the user code
    is in the Smart Life app under Me → Settings → Account and Security). It writes the bulbs' local keys to
    `data/devices.json`; the bulbs are then controlled on your network, without the cloud.
+
+6. **Assistant** (optional): the assistant widget is a window onto the voice assistant (the separate
+   `voice_assistant` project, "Clanker"), which runs on its own with push-to-talk. Start it as usual
+   (`pyw -3.13 main.py --tray` there); it serves a local API on 127.0.0.1:8766 that the hub relays
+   (`assistant_url` in `config.json`). See **The assistant widget** below.
 
 The lights and calendar tools in `assistant/tools/` come from a separate voice assistant project. If you have it,
 set `voice_assistant_dir` in `config.json` and the hub uses its copy, logins and bulbs instead.
@@ -81,6 +87,38 @@ keypress, so pick a combination the game doesn't use. Only slots that have a pre
 
 A widget's name, description and allowed sizes come from `export const meta` in its `widget.js`.
 
+## The assistant widget
+
+The voice assistant is one service with several front ends: its push-to-talk key, its tray icon and this widget.
+The widget shows the same conversation whichever way you used it:
+- **Talk:** hold the push-to-talk key (F9) anywhere, games included. What it heard and what it answered appear in
+  the tile, with a mic mark on spoken lines.
+- **Type:** click the field at the bottom, type, press Enter. Answers to typed questions are shown, not spoken,
+  unless you switch on "Read answers to typed questions aloud" in the tile's ⚙. While an approval is open, typing
+  yes or no answers it. Esc leaves the field.
+- **Approve:** anything that changes files, the calendar, the volume or a program shows an approval card with
+  **Yes** / **No**. Saying yes or no with push-to-talk still works too. No answer within a minute means no.
+- **Model:** **Local** (Ollama on the GTX 1660), **Cloud** (Claude through Anthropic's API, or any OpenAI-compatible
+  service), or **Auto** (local, and the cloud when Ollama is down or fails). The choice is saved by the assistant and
+  shared with its tray settings. Each answer is tagged with the model that wrote it. The Cloud button is dimmed until
+  there is an API key. In cloud mode, what you say or type, and the results of the tools that ran (file names,
+  calendar events), are sent to that service.
+- **Models and API key:** in the editor, the tile's ⚙ opens **Assistant settings**. Below the tile's own options:
+  - **Cloud model:** the service (Anthropic, or any OpenAI-compatible one with its address), your API key
+    (**Save** / **Remove**), and the model: Opus 5.5, Sonnet 5.5 or Haiku 5.5, or any name the service offers.
+    **Test the key** checks the key and the model without spending anything.
+  - **Local model:** Ollama's address and the model name. **Test** loads it, as the first command would.
+
+  These belong to the assistant: it saves them in its own `config/settings.json` and uses them from the next
+  question, push-to-talk included. They aren't part of the layout's Save. The key never goes into `layout.json`,
+  and the page only ever sees its last four characters.
+- **Status** in the header: Ready, Listening, Transcribing, Thinking, Needs approval, Speaking. Click it while it
+  speaks to stop it.
+
+In the overlay, clicking the field gives the overlay the keyboard until you press Esc or click another window.
+At all other times it never takes the focus. When the assistant isn't running, the tile says so and
+reconnects by itself once it starts.
+
 ## layout.json by hand
 
 `web/layout.json` sets an 8×4 grid (`columns`, `rows`). Each widget entry looks like this:
@@ -100,6 +138,7 @@ and highlights. `options` per widget:
 | lights | `name` (bulb or room, default `"all"`), `rows` (`["temps", "colours", "scenes"]`), `interval` (ms, default 10000). Also 2×1, where it shows two rows |
 | calendar | `view` (`"day"`, `"week"`, `"month"`), `locale`. Day and week are time grids (busy and free hours at a glance). Month lists each day's events by name when the tile is at least 3 wide and 2 tall, up to the whole screen (with start times from 4 wide), and otherwise shows each day's busy hours as a strip; hover an event or a day for details. Any size from 2×1 up to the whole grid. Needs the calendar setup above |
 | discord | `interval` (ms, default 400), `dms` (unread DMs along the bottom; click one to open it in Discord), `sound` (play `sounds/dm.wav` for a DM while in a call), `expire` (minutes before an unread DM is dropped, default 180) |
+| assistant | `speak` (read answers to typed questions aloud, default `false`), `backendSwitch` (show Local / Cloud / Auto, default `true`). 2×2 up to 4×4 |
 | discord_chat | `text` (`small`, `normal`, `large`), `avatars`. The server channel open in Discord, found from the Discord window title; DMs can't be shown. Pictures show as thumbnails (gifs as a still frame); click one to open it in the browser |
 
 ## Colours, type and motion

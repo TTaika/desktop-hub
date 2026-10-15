@@ -7,6 +7,11 @@ runs in this one process.
 - The page is rendered on the CPU into a per-pixel-alpha layered window. Fully transparent pixels let clicks
   through to the desktop, so only the tiles take the mouse.
 - The window is owned by Progman (the desktop), which keeps it above the wallpaper and below normal windows.
+- It never takes the keyboard focus, so clicking a tile leaves your game or window focused. The one exception is
+  a text field (the assistant widget's): clicking it calls `window.__hostKeyboard(1)` (`HostKeyboard.cs`), the
+  window takes the focus and passes keys to the page until the field calls `__hostKeyboard(0)` (Esc) or another
+  window gets the focus. The window then goes back to the bottom of the z-order. Alt+F4 is never passed on, so it
+  can't close the overlay.
 - A user stylesheet in `Program.cs` removes the page's own background. Glass tiles turn into a denser tint by
   themselves (`hub.css` checks for `backdrop-filter`, which Ultralight lacks).
 - It ticks at up to 60 Hz while something moves and at 20 Hz when the page is still, and sends Windows only the

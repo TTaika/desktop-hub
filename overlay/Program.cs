@@ -54,7 +54,12 @@ html, body, body.has-bg { background: transparent !important; background-image: 
         if (main) retryAt = clock.ElapsedMilliseconds + 3000;   // e.g. the server isn't up yet right after login
     };
     static readonly UL.ChangeCursor onCursor = (_, _, c) => cursor = c;
-    static readonly UL.FrameEvent onWindowReady = (_, _, _, main, _) => { if (main) HostFetch.Install(view, url); };
+    static readonly UL.FrameEvent onWindowReady = (_, _, _, main, _) =>
+    {
+        if (!main) return;
+        HostFetch.Install(view, url);
+        HostKeyboard.Install(view, hwnd);
+    };
 
     static int Main(string[] args)
     {
@@ -291,7 +296,15 @@ html, body, body.has-bg { background: transparent !important; background-image: 
         switch (msg)
         {
             case Win.WM_TIMER: Frame(); return IntPtr.Zero;
-            case Win.WM_MOUSEACTIVATE: return new IntPtr(Win.MA_NOACTIVATE);   // clicking a tile doesn't steal focus
+            // clicking a tile doesn't steal focus, unless a text field asked for the keyboard (HostKeyboard)
+            case Win.WM_MOUSEACTIVATE: return new IntPtr(HostKeyboard.On ? Win.MA_ACTIVATE : Win.MA_NOACTIVATE);
+            case Win.WM_ACTIVATE:
+                if (((long)wParam & 0xFFFF) == 0) HostKeyboard.Lost(view);     // WA_INACTIVE: another window has the focus
+                return IntPtr.Zero;
+            case Win.WM_KEYDOWN: case Win.WM_KEYUP: case Win.WM_CHAR:
+            case Win.WM_SYSKEYDOWN: case Win.WM_SYSKEYUP: case Win.WM_SYSCHAR:
+                if (HostKeyboard.On) HostKeyboard.Fire(view, msg, wParam, lParam);
+                return IntPtr.Zero;
             case Win.WM_MOUSEMOVE:
                 if (!tracking)
                 {

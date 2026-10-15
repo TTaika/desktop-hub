@@ -1,0 +1,126 @@
+.w-assistant [hidden] { display: none !important; }
+
+/* status pill in the header: a dot that says what the assistant is doing */
+.as-status { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 99px;
+  background: var(--fill); color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; cursor: default; }
+.as-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); transition: background 0.2s; }
+.st-ready .as-dot { background: var(--green); }
+.st-recording .as-dot { background: var(--red); animation: as-pulse 1s ease-in-out infinite; }
+.st-transcribing .as-dot, .st-thinking .as-dot { background: var(--blue); animation: as-pulse 1.2s ease-in-out infinite; }
+.st-approval .as-dot { background: var(--orange); }
+.st-approval { color: var(--orange); }
+.st-speaking .as-dot { background: var(--purple); animation: as-pulse 0.8s ease-in-out infinite; }
+.st-speaking { cursor: pointer; }
+@keyframes as-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .as-dot { animation: none !important; } }
+
+/* Local / Cloud / Auto */
+.as-modes { display: flex; gap: 3px; padding: 3px; margin: -4px 0 10px; border-radius: 11px; background: var(--fill); flex: none; }
+.as-mode { flex: 1; padding: 5px 0; border-radius: 8px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.as-mode.active { background: rgba(255, 255, 255, 0.16); color: var(--text); }
+.as-mode.unset { opacity: 0.55; }
+
+/* the conversation */
+.as-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 8px;
+  padding: 2px 0 4px; }
+/* never squeeze a message to fit: the overlay's engine shrinks flex rows below their content (cutting off their
+   bottom) instead of letting the list scroll */
+.as-list > * { flex: none; }
+.as-list::-webkit-scrollbar { width: 0; height: 0; }
+.as-row { display: flex; align-items: flex-end; gap: 7px; }
+.as-me { justify-content: flex-end; }
+.as-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: 84%; }
+.as-me .as-col { align-items: flex-end; }
+.as-avatar { flex: none; width: 24px; height: 24px; margin-bottom: 17px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; color: #fff;
+  background: linear-gradient(135deg, #5e5ce6, #0a84ff); }
+.as-avatar.as-quiet { visibility: hidden; }          /* a reply right after a reply: one avatar per run */
+.as-bubble { padding: 8px 12px; border-radius: 18px 18px 18px 6px; background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.06); font-size: 13.5px; line-height: 1.42; white-space: pre-wrap;
+  word-wrap: break-word; user-select: text; }
+.as-me .as-bubble { border-radius: 18px 18px 6px 18px; border-color: transparent; color: #fff;
+  background: linear-gradient(180deg, #2b95ff, #0a7cf0); }
+.as-via { display: inline-flex; vertical-align: -1px; margin-right: 5px; opacity: 0.8; }
+.as-meta { display: flex; align-items: center; gap: 5px; margin: 4px 6px 0; color: var(--faint); font-size: 10.5px;
+  font-weight: 600; white-space: nowrap; }
+.as-tag { padding: 1px 6px; border-radius: 99px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--muted); background: rgba(255, 255, 255, 0.07); }
+.as-tag.as-cloud { color: var(--teal); background: rgba(100, 210, 255, 0.12); }
+.as-notice { align-self: center; max-width: 92%; padding: 3px 10px; border-radius: 99px; color: var(--faint);
+  font-size: 11.5px; text-align: center; background: rgba(255, 255, 255, 0.04); }
+.as-flash { color: var(--orange); background: rgba(255, 159, 10, 0.1); }
+
+/* while it listens or thinks: three dots in a bubble at the end of the conversation */
+.as-typing .as-avatar { margin-bottom: 0; }
+.as-typing .as-bubble { display: flex; align-items: center; gap: 7px; padding: 10px 13px; color: var(--muted);
+  font-size: 12px; }
+.as-dots { display: flex; gap: 4px; }
+.as-dots i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.35;
+  animation: as-bounce 1.2s ease-in-out infinite; }
+.as-dots i:nth-child(2) { animation-delay: 0.15s; }
+.as-dots i:nth-child(3) { animation-delay: 0.3s; }
+.as-typing.as-listening .as-dots { color: var(--red); }
+@keyframes as-bounce { 0%, 60%, 100% { opacity: 0.35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .as-dots i { animation: none; opacity: 0.7; } }
+
+/* nothing said yet */
+.as-empty { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.45; padding: 0 12px; }
+.as-hello { width: 52px; height: 52px; margin-bottom: 4px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; color: #fff; background: linear-gradient(135deg, #5e5ce6, #0a84ff);
+  box-shadow: 0 6px 20px rgba(10, 132, 255, 0.35); }
+.as-hello-title { color: var(--text); font-size: 15px; font-weight: 600; }
+.as-key { display: inline-block; padding: 0 6px; border-radius: 5px; border: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom-width: 2px; color: var(--text); font-size: 11.5px; font-weight: 600; }
+
+/* an approval: what will happen, and the buttons while it is open */
+.as-approval { margin-left: 31px; padding: 10px 12px; border-radius: 16px; background: rgba(255, 159, 10, 0.1);
+  border: 1px solid rgba(255, 159, 10, 0.45); }
+.as-approval.approved { background: rgba(48, 209, 88, 0.08); border-color: rgba(48, 209, 88, 0.3); }
+.as-approval.denied { background: var(--fill); border-color: transparent; }
+.as-ap-head { display: flex; align-items: center; gap: 5px; color: var(--orange); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; }
+.as-approval.approved .as-ap-head { color: var(--green); }
+.as-approval.denied .as-ap-head { color: var(--muted); }
+.as-ap-text { margin-top: 5px; font-size: 13px; line-height: 1.38; white-space: pre-wrap; word-wrap: break-word; }
+.as-ap-btns { display: flex; gap: 8px; margin-top: 9px; }
+.as-ap-btns button { flex: 1; padding: 8px 0; border-radius: 10px; font-size: 13.5px; font-weight: 600; }
+.as-no { background: var(--fill-strong); }
+.as-yes { background: var(--orange); color: rgba(0, 0, 0, 0.85); }
+.as-ap-result { margin-top: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+
+/* typing */
+.as-composer { flex: none; display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 4px 4px 4px 14px;
+  border-radius: 20px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.15s, background 0.15s; }
+.as-composer:focus-within { border-color: rgba(10, 132, 255, 0.7); background: rgba(10, 132, 255, 0.08); }
+.as-input { flex: 1; min-width: 0; padding: 6px 0; border: 0; outline: 0; background: transparent; color: var(--text);
+  font: inherit; font-size: 13.5px; user-select: text; }
+.as-input::placeholder { color: var(--faint); }
+.as-send { flex: none; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, #2b95ff, #0a7cf0); color: #fff; transition: opacity 0.15s; }
+.as-send:disabled, .as-send.as-idle { opacity: 0.35; }
+
+/* the assistant isn't running */
+.w-assistant.as-off .as-modes, .w-assistant.as-off .as-list, .w-assistant.as-off .as-empty,
+.w-assistant.as-off .as-composer { display: none; }
+.as-offline { display: none; }
+.w-assistant.as-off .as-offline { display: block; }
+.as-off-title { color: var(--text); font-weight: 600; margin-bottom: 6px; }
+.st-off .as-dot { background: var(--faint); }
+
+/* Assistant settings in the editor's drawer (settingsPanel in widget.js) */
+.asp { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.asp-head { font-weight: 600; font-size: 14px; margin-top: 4px; }
+.asp-row { display: flex; align-items: center; gap: 8px; }
+.asp-row .st-text { flex: 1; min-width: 0; }
+.asp .st-field .st-chips { margin-bottom: 8px; }
+.asp-what { margin-left: 6px; opacity: 0.6; font-size: 11px; }
+.asp-btn { flex: none; padding: 8px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); font-size: 13px; }
+.asp-btn:hover { background: rgba(255, 255, 255, 0.15); }
+.asp-btn.primary { background: #8ab4ff; color: #0b1430; font-weight: 600; }
+.asp-btn:disabled { opacity: 0.5; }
+.asp-note { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.asp-note.good { color: var(--green); }
+.asp-note.bad { color: var(--red); }

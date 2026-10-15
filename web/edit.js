@@ -583,5 +583,8 @@ function settingsForm(entry) {
     h("p", { class: "ed-hint" }, "Changes show on the tile right away. Save to keep them."),
     fields,
     h("button", { class: "st-reset", onclick: () => { delete entry.w.options; remount(entry); openSettings(entry); } },
-      "Reset to defaults"));
+      "Reset to defaults"),
+    // meta.panel({ api, h }): a widget's own settings that don't belong in layout.json (the assistant's API key,
+    // kept by the assistant itself). They apply when changed there, not on Save.
+    meta.panel ? meta.panel({ api, h }) : null);
 }

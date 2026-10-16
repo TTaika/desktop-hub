@@ -22,6 +22,9 @@ export const meta = {
 // (only its last four characters).
 const CLAUDE = [["claude-opus-5-5", "Opus 5.5", "most capable"], ["claude-sonnet-5-5", "Sonnet 5.5", "balanced"],
   ["claude-haiku-5-5", "Haiku 5.5", "fastest, cheapest"]];
+// How fast you walk to the stop and between lines, in m/s: reittiopas's own choices
+const WALK_SPEEDS = [[0.69, "Slow", "2.5 km/h"], [0.97, "Calm", "3.5 km/h"], [1.2, "Average", "4.3 km/h"],
+  [1.67, "Brisk", "6 km/h"], [2.22, "Fast", "8 km/h"]];
 
 function settingsPanel({ api, h }) {
   const root = h("div", { class: "asp" });
@@ -92,6 +95,14 @@ function settingsPanel({ api, h }) {
     const localTest = h("button", { class: "asp-btn", onclick: () => test("local", localOut, localTest) }, "Test");
     fillModels("local", localList);
 
+    // public transport: walking speed (older assistants don't send it)
+    const t = s.travel;
+    const speeds = t ? h("div", { class: "st-chips" }, WALK_SPEEDS.map(([v, name, kmh]) =>
+      h("button", { class: `st-chip${Math.abs(t.walk_speed - v) < 0.01 ? " on" : ""}`, title: `${v} m/s`,
+        onclick: () => save({ hsl_walk_speed: v }) }, name, h("span", { class: "asp-what" }, kmh)))) : null;
+    const custom = t && !WALK_SPEEDS.some(([v]) => Math.abs(t.walk_speed - v) < 0.01)
+      ? h("div", { class: "asp-note" }, `Now ${t.walk_speed} m/s (${(t.walk_speed * 3.6).toFixed(1)} km/h), set in the assistant's config.`) : null;
+
     root.replaceChildren(...[
       h("div", { class: "asp-head" }, "Cloud model"),
       field("Service", provider),
@@ -103,6 +114,10 @@ function settingsPanel({ api, h }) {
       field("Address", lurl),
       field("Model", lmodel, localList),
       h("div", { class: "asp-row" }, localTest, localOut),
+      t ? h("div", { class: "asp-head" }, "Public transport") : null,
+      t ? field("Walking speed", speeds, custom) : null,
+      t ? h("p", { class: "ed-hint" }, "To the stop and between lines. Faster finds tighter connections that a slower ",
+        "pace would miss. Used for HSL routes, spoken or shown, and the Reittiopas link.") : null,
       note,
       h("p", { class: "ed-hint" }, "These are the assistant's own settings: they apply right away, also to push-to-talk, ",
         "and aren't part of Save. The key stays on this PC, in the assistant's config/settings.json."),

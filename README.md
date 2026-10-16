@@ -109,6 +109,8 @@ The widget shows the same conversation whichever way you used it:
     (**Save** / **Remove**), and the model: Opus 5.5, Sonnet 5.5 or Haiku 5.5, or any name the service offers.
     **Test the key** checks the key and the model without spending anything.
   - **Local model:** Ollama's address and the model name. **Test** loads it, as the first command would.
+  - **Public transport:** your walking speed, from Slow (2.5 km/h) to Fast (8 km/h), as in reittiopas. Default Brisk
+    (6 km/h). A faster pace finds tighter connections; it is used for HSL routes and the Reittiopas link.
 
   These belong to the assistant: it saves them in its own `config/settings.json` and uses them from the next
   question, push-to-talk included. They aren't part of the layout's Save. The key never goes into `layout.json`,

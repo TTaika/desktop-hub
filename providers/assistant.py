@@ -13,7 +13,7 @@ The editor's Assistant settings (kept by the assistant in its config/settings.js
 GET  /api/assistant?settings=1          the model settings; the cloud key only as "...abcd"
 GET  /api/assistant?models=cloud|local  models on offer
 POST /api/assistant {"settings": {"cloud_api_key", "cloud_provider", "cloud_model", "cloud_url", "ollama_url",
-                    "local_model"}} | {"test": "cloud"|"local"}
+                    "local_model", "hsl_walk_speed"}} | {"test": "cloud"|"local"}
 
 The assistant's API refuses requests from browsers; this server calls it without an Origin.
 """

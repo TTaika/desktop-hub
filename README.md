@@ -138,7 +138,7 @@ and highlights. `options` per widget:
 | processes | `sort` (`"cpu"` / `"mem"`), `count` (rows, default 7), `interval` (ms, default 3000) |
 | lights | `name` (bulb or room, default `"all"`), `rows` (`["temps", "colours", "scenes"]`), `interval` (ms, default 10000). Also 2×1, where it shows two rows |
 | calendar | `view` (`"day"`, `"week"`, `"month"`), `locale`. Day and week are time grids (busy and free hours at a glance). Month lists each day's events by name when the tile is at least 3 wide and 2 tall, up to the whole screen (with start times from 4 wide), and otherwise shows each day's busy hours as a strip; hover an event or a day for details. Any size from 2×1 up to the whole grid. Needs the calendar setup above |
-| discord | `interval` (ms, default 400), `dms` (unread DMs along the bottom; click one to open it in Discord), `sound` (play `sounds/dm.wav` for a DM while in a call), `expire` (minutes before an unread DM is dropped, default 180) |
+| discord | `interval` (ms, default 400), `dms` (unread DMs along the bottom; click one to open it in Discord), `expire` (minutes before an unread DM is dropped, default 180) |
 | assistant | `speak` (read answers to typed questions aloud, default `false`), `backendSwitch` (show Local / Cloud / Auto, default `true`). 2×2 up to 4×4 |
 | discord_chat | `text` (`small`, `normal`, `large`), `avatars`. The server channel open in Discord, found from the Discord window title; DMs can't be shown. Pictures show as thumbnails (gifs as a still frame); click one to open it in the browser |
 | agents | `hours` (how long finished agents stay listed, default 12), `terminals` (also list terminals you have open, default `true`), `interval` (ms, default 2000). 2×1 up to 4×4; at 2×1 one line per agent |

@@ -6,7 +6,7 @@ GET  /api/assistant?since=<seq>&wait=<s>  -> the assistant's state and new conve
                                              voice_assistant/assistant/engine.py), held up to `wait` seconds
                                              until something changes; {"online": false} if it isn't running
 POST /api/assistant {"ask": "text", "speak": false} | {"approve": true|false} | {"backend": "local"|"cloud"|"auto"}
-                    | {"stop": true}
+                    | {"stop": true} | {"preload": true} (the user started typing: load the local model now)
 The editor's Assistant settings (kept by the assistant in its config/settings.json, never in layout.json):
 GET  /api/assistant?settings=1          the model settings; the cloud key only as "...abcd"
 GET  /api/assistant?models=cloud|local  models on offer
@@ -72,6 +72,8 @@ def post(body: dict) -> dict:
         path, payload = "/backend", {"mode": str(body["backend"])}
     elif "stop" in body:
         path, payload = "/stop", {}
+    elif "preload" in body:
+        path, payload = "/preload", {}
     elif isinstance(body.get("settings"), dict):
         path, payload = "/settings", body["settings"]
     elif "test" in body:

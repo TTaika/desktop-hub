@@ -4,13 +4,14 @@ It talks to Discord's local RPC socket the way the StreamKit overlay does (Strea
 token exchange). The first time, Discord shows an "Authorize" window; the token is then kept in
 data/discord_token.json.
 
-GET /api/discord[?sound=1&expire=minutes]
+GET /api/discord[?expire=minutes]
   -> {"status": "ready" | "no_discord" | "authorizing" | "error", "message": str,
       "channel": {"id", "name", "guild"} | null,
       "members": [{"id", "name", "avatar", "speaking", "muted", "deafened", "me"}],
       "dms": [{"channel_id", "name", "avatar", "count", "time"}]}        unread DMs, newest first
-  sound=1: play sounds/dm.wav when a DM arrives while you are in a call (asked for by the call widget).
   expire: forget an unread DM after this many minutes (default 180).
+  The answer has "ver", which goes up whenever any of it changes. Asked with wait=<ver>, the request is held until
+  something changes (at most WAIT_S), so the call widget sees a speaking change a few ms after Discord sends it.
 GET /api/discord?view=chat
   -> {"status": "ready" | "none" | "dm" | "not_found" | "loading" | <the connection statuses>, "message": str,
       "channel": {"id", "name", "guild", "topic"} | null,
@@ -35,7 +36,6 @@ import threading
 import time
 import urllib.request
 import uuid
-from pathlib import Path
 
 import websocket
 
@@ -47,14 +47,15 @@ CLIENT_ID = "207646673902501888"                 # StreamKit
 ORIGIN = "http://localhost:3000"            # an origin StreamKit's app accepts (as Discover overlay uses)
 TOKEN_URL = "https://streamkit.discord.com/overlay/token"
 TOKEN_FILE = DATA / "discord_token.json"
-SOUND = Path(__file__).resolve().parent.parent / "sounds" / "dm.wav"
 SCOPES = ["rpc", "messages.read", "rpc.notifications.read"]
 CHANNEL_EVENTS = ["VOICE_STATE_CREATE", "VOICE_STATE_UPDATE", "VOICE_STATE_DELETE", "SPEAKING_START", "SPEAKING_STOP"]
 MESSAGE_EVENTS = ["MESSAGE_CREATE", "MESSAGE_UPDATE", "MESSAGE_DELETE"]
 TEXT_TYPES = (0, 5, 2, 13, 15)               # text, announcement, voice (has a text chat), stage, forum
 KEEP_MESSAGES = 50
+WAIT_S = 10                   # longest a wait=<ver> request is held; the overlay gives up on a request after 15 s
 
-_lock = threading.Lock()
+_lock = threading.Condition()
+_ver = {"n": 0}               # bumped by _changed() when the call, its members or the unread DMs change
 _state = {"status": "no_discord", "message": "Connecting to Discord...", "channel": None}
 _members = {}                 # user id -> member dict
 _me = {"id": None}
@@ -64,7 +65,6 @@ _title = {"value": None, "gen": 0}
 _dms = {}                     # channel id -> unread DM (see get)
 _dm_kind = {}                 # channel id -> True if it is a DM or group DM
 _watched = set()              # channel ids with message events subscribed
-_sound = {"t": 0.0}           # when a call widget last asked for the sound
 _cache = {"guilds": (0.0, []), "channels": {}}
 
 
@@ -72,15 +72,18 @@ def get(params: dict) -> dict:
     if params.get("view") == "chat":
         with _lock:
             return {**_chat, "messages": list(_chat["messages"])}
-    if params.get("sound") == "1":
-        _sound["t"] = time.monotonic()
     expire = float(params.get("expire") or 180) * 60
     with _lock:
-        for ch in [c for c, d in _dms.items() if time.time() - d["time"] > expire]:
+        if params.get("wait"):
+            _lock.wait_for(lambda: str(_ver["n"]) != params["wait"], timeout=WAIT_S)
+        old = [c for c, d in _dms.items() if time.time() - d["time"] > expire]
+        for ch in old:
             del _dms[ch]
+        if old:
+            _changed()
         members = sorted(_members.values(), key=lambda m: (not m["me"], m["name"].lower()))
         dms = sorted(({k: v for k, v in d.items() if k != "names"} for d in _dms.values()), key=lambda d: -d["time"])
-        return {**_state, "members": members, "dms": dms}
+        return {**_state, "members": members, "dms": dms, "ver": _ver["n"]}
 
 
 def post(body: dict) -> dict:
@@ -98,6 +101,7 @@ def post(body: dict) -> dict:
     elif body.get("dismiss") == "all":
         with _lock:
             _dms.clear()
+            _changed()
     elif body.get("dismiss"):
         _read(str(body["dismiss"]))
     return {"ok": True}
@@ -108,9 +112,16 @@ def start():
     threading.Thread(target=_watch_title, name="discord-title", daemon=True).start()
 
 
+def _changed():
+    """Call with _lock held after changing what GET /api/discord returns: wakes the requests waiting for it."""
+    _ver["n"] += 1
+    _lock.notify_all()
+
+
 def _set(**kw):
     with _lock:
         _state.update(kw)
+        _changed()
 
 
 def _set_chat(**kw):
@@ -164,6 +175,7 @@ def _run():
         _watched.clear()
         with _lock:
             _members.clear()
+            _changed()
             _chat.update(status=_state["status"], message=_state["message"], channel=None, messages=[])
         time.sleep(delay)
 
@@ -261,6 +273,7 @@ def _session() -> int:
                 with _lock:
                     if _state["channel"] and _state["channel"].get("guild_id") == data.get("id"):
                         _state["channel"] = {**_state["channel"], "guild": data.get("name")}
+                        _changed()
 
             elif cmd == "DISPATCH":
                 _on_event(evt, data, watch, send)
@@ -294,6 +307,7 @@ def _on_channel(data, watch, send):
             _members[m["id"]] = m
         _state["channel"] = {"id": data["id"], "name": data.get("name") or "Call",
                              "guild_id": guild_id, "guild": None if guild_id else "Direct call"}
+        _changed()
     if guild_id:
         send("GET_GUILD", {"guild_id": guild_id})
 
@@ -310,14 +324,17 @@ def _on_event(evt, data, watch, send):
             speaking = _members.get(uid, {}).get("speaking", False)
             m = _member(data, speaking)
             _members[m["id"]] = m
+            _changed()
     elif evt == "VOICE_STATE_DELETE":
         with _lock:
-            _members.pop((data.get("user") or {}).get("id"), None)
+            if _members.pop((data.get("user") or {}).get("id"), None):
+                _changed()
     elif evt in ("SPEAKING_START", "SPEAKING_STOP"):
         with _lock:
             m = _members.get(str(data.get("user_id")))
-            if m:
+            if m and m["speaking"] != (evt == "SPEAKING_START"):
                 m["speaking"] = evt == "SPEAKING_START"
+                _changed()
     elif evt == "NOTIFICATION_CREATE":
         _on_notification(data, send)
     elif evt in MESSAGE_EVENTS:
@@ -343,11 +360,8 @@ def _on_notification(data: dict, send):
             _dms[ch] = {"channel_id": ch, "name": data.get("title") or _name(author), "avatar": _avatar(author),
                         "count": (d["count"] if d else 0) + 1, "time": time.time(),
                         "names": (d["names"] if d else set()) | names}
-            in_call = _state["channel"] is not None
+            _changed()
         _subscribe_messages(ch)                # to see your answer, which marks it read
-        if in_call and time.monotonic() - _sound["t"] < 30 and SOUND.is_file():
-            import winsound
-            winsound.PlaySound(str(SOUND), winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
 
     if ch in _dm_kind:
         return decide(_dm_kind[ch])
@@ -365,7 +379,8 @@ def _on_notification(data: dict, send):
 
 def _read(channel_id: str):
     with _lock:
-        _dms.pop(channel_id, None)
+        if _dms.pop(channel_id, None):
+            _changed()
 
 
 def _read_by_title(name: str):
@@ -373,6 +388,7 @@ def _read_by_title(name: str):
     with _lock:
         for ch in [c for c, d in _dms.items() if name in d["names"]]:
             del _dms[ch]
+            _changed()
 
 
 # -------------------------------------------------------------- open chat --

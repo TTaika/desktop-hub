@@ -8,7 +8,6 @@ export const meta = {
   minSize: "2x2", maxSize: "3x4",
   settings: [
     { key: "dms", label: "Show unread DMs", type: "bool", default: true },
-    { key: "sound", label: "Play a sound for a DM while in a call", type: "bool", default: true },
     { key: "expire", label: "Forget an unread DM after", type: "range", min: 15, max: 720, step: 15, unit: " min", default: 180 },
   ],
 };
@@ -77,9 +76,11 @@ export function mount(el, { options, api }) {
     body.replaceChildren(h("div", { class: "tile-empty" }, content));
   }
 
-  api.poll("discord", o.interval || 400, (d) => {
+  // The server pushes: it answers as soon as something changes (see api.poll), so a speaking ring follows
+  // Discord within milliseconds. 1000 ms is only the pause before trying again after a failure.
+  api.poll("discord", o.interval || 1000, (d) => {
     const key = JSON.stringify(d);
-    if (key === lastKey) return;            // polled often for the speaking rings; only update on change
+    if (key === lastKey) return;            // e.g. a held request that ended without a change
     lastKey = key;
 
     showDms(d && d.dms);
@@ -98,5 +99,5 @@ export function mount(el, { options, api }) {
       const el = row(m);
       if (list.children[i] !== el) list.insertBefore(el, list.children[i] || null);
     });
-  }, { sound: o.sound ? "1" : "0", expire: o.expire });
+  }, { expire: o.expire });
 }

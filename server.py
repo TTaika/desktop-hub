@@ -196,14 +196,20 @@ class Handler(BaseHTTPRequestHandler):
             pass                         # the browser stopped reading, e.g. after seeking
 
 
+class Server(ThreadingHTTPServer):
+    # On Windows SO_REUSEADDR lets a second hub bind the same port and run alongside the first (two Discord
+    # connections, two of everything), so "port in use" below never fired.
+    allow_reuse_address = sys.platform != "win32"
+
+
 def main():
-    handlers = [logging.FileHandler(DATA / "hub.log", encoding="utf-8")]
+    handlers =[logging.FileHandler(DATA / "hub.log", encoding="utf-8")]
     if sys.stdout:                       # None under pythonw
         handlers.append(logging.StreamHandler())
     logging.basicConfig(level=logging.INFO, handlers=handlers,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+        server = Server(("127.0.0.1", PORT), Handler)
     except OSError:
         log.error("port %d is in use - is the hub already running?", PORT)
         return

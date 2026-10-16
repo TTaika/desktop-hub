@@ -154,14 +154,15 @@ export function mount(el, { options, api }) {
   const empty = h("div", { class: "as-empty" });
   const input = h("input", { class: "as-input", type: "text", maxlength: 500, spellcheck: "false",
     // In the overlay the window never has the keyboard; clicking the field asks the host for it (HostKeyboard.cs).
-    onmousedown: () => { if (window.__hostKeyboard) window.__hostKeyboard(1); },
+    onmousedown: () => { if (window.__hostKeyboard) window.__hostKeyboard(1); preload(); },
+    onfocus: () => preload(),
     onblur: () => { if (window.__hostKeyboard) window.__hostKeyboard(0); },
     onkeydown: e => {
       if (e.key === "Enter") { e.preventDefault(); send(); }
       else if (e.key === "Escape") input.blur();
     } });
   const sendBtn = h("button", { class: "as-send as-idle press", title: "Send", onclick: () => send() }, icon("up", 16));
-  input.addEventListener("input", () => sendBtn.classList.toggle("as-idle", !input.value.trim()));
+  input.addEventListener("input", () => { sendBtn.classList.toggle("as-idle", !input.value.trim()); preload(); });
   const composer = h("div", { class: "as-composer" }, input, sendBtn);
   const offline = h("div", { class: "tile-empty as-offline" });
   const typingText = h("span");
@@ -179,6 +180,15 @@ export function mount(el, { options, api }) {
   status.addEventListener("click", () => {
     if (snap && snap.state === "speaking") api.post("assistant", { stop: true });
   });
+
+  // A cold local model takes ~20 s to load and read its prompt: start that while the user is still typing.
+  // The assistant ignores it when the model is already loaded or the cloud answers.
+  let preloaded = 0;
+  function preload() {
+    if (Date.now() - preloaded < 60000) return;
+    preloaded = Date.now();
+    api.post("assistant", { preload: true }).catch(() => {});
+  }
 
   async function send() {
     const text = input.value.trim();

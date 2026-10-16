@@ -16,15 +16,24 @@ export const api = {
   },
   // Calls cb(data) every `ms` (cb(null, error) on failure). Skips while the page is hidden,
   // e.g. when Wallpaper Engine pauses the wallpaper. Returns { stop(), now() }.
+  // A provider that answers with "ver" pushes instead: the next request asks with wait=<ver>, the server holds it
+  // until something changes, and it goes out again right away. `ms` is then only the pause after a failure.
   poll(name, ms, cb, params = {}) {
-    let timer, stopped = false;
+    let timer, stopped = false, busy = false, ver = null;
     const tick = async () => {
       clearTimeout(timer);
-      if (stopped) return;
+      if (stopped || busy) return;            // busy: a held request answers by itself
+      let next = ms;
       if (!document.hidden) {
-        try { cb(await api.get(name, params)); } catch (e) { cb(null, e); }
+        busy = true;
+        try {
+          const d = await api.get(name, ver == null ? params : { ...params, wait: ver });
+          if (d && d.ver != null) { ver = d.ver; delete d.ver; next = 0; }
+          if (!stopped) cb(d);
+        } catch (e) { ver = null; if (!stopped) cb(null, e); }
+        busy = false;
       }
-      if (!stopped) timer = setTimeout(tick, ms);
+      if (!stopped) timer = setTimeout(tick, next);
     };
     tick();
     return { stop() { stopped = true; clearTimeout(timer); }, now: tick };

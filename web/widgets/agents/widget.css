@@ -1,0 +1,79 @@
+/* one colour per status: the glyph, the pill and the count in the header follow it */
+.w-agents .st-working { --st: var(--blue); }
+.w-agents .st-input { --st: var(--orange); }
+.w-agents .st-idle { --st: rgba(235, 235, 245, 0.45); }
+.w-agents .st-done { --st: var(--green); }
+.w-agents .st-failed { --st: var(--red); }
+.w-agents .st-stopped { --st: rgba(235, 235, 245, 0.32); }
+
+/* header: how many need you, are working, are idle */
+.ag-summary { display: flex; gap: 6px; flex: none; }
+.ag-count { display: flex; align-items: center; gap: 5px; padding: 2px 9px 2px 7px; border-radius: 99px;
+  background: var(--fill); color: var(--text); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ag-count i { width: 7px; height: 7px; border-radius: 50%; background: var(--st); }
+.ag-count.st-working i { animation: ag-pulse 1.6s ease-in-out infinite; }
+.ag-count.st-input { color: var(--orange); background: rgba(255, 159, 10, 0.14); }
+.ag-all { color: var(--green); background: rgba(48, 209, 88, 0.12); padding-left: 9px; }
+
+.ag-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 6px;
+  margin: -2px -6px 0; padding: 2px 6px; }
+.ag-list::-webkit-scrollbar { width: 0; height: 0; }
+.ag-list > * { flex: none; }            /* the overlay's engine would squeeze rows instead of scrolling */
+
+.ag-row { position: relative; display: flex; align-items: center; gap: 11px; padding: 9px 11px; border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.04); }
+.ag-row.st-input { background: rgba(255, 159, 10, 0.1); border-color: rgba(255, 159, 10, 0.28); }
+.ag-row.st-done, .ag-row.st-stopped { background: rgba(255, 255, 255, 0.025); }
+.ag-row.st-done .ag-name, .ag-row.st-stopped .ag-name { color: rgba(255, 255, 255, 0.78); }
+
+.ag-glyph { flex: none; display: block; overflow: visible; }
+.ag-g-track { fill: none; stroke: var(--st); stroke-width: 2.4; opacity: 0.22; }
+.ag-g-arc { fill: none; stroke: var(--st); stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 66; stroke-dashoffset: 0;
+  transform-origin: 13px 13px; }
+.ag-g-mark { fill: none; stroke: var(--st); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.st-working .ag-g-arc { stroke-dasharray: 18 48; animation: ag-spin 1.1s linear infinite; }
+.st-working .ag-g-track { opacity: 0.18; }
+.st-input .ag-g-arc, .st-idle .ag-g-arc, .st-stopped .ag-g-arc { opacity: 0; }
+.st-input .ag-g-track { fill: var(--orange); opacity: 0.2; }
+.st-input .ag-g-mark { stroke-width: 2.8; }
+.st-done .ag-g-arc { opacity: 0; }
+.st-done .ag-g-track { fill: var(--green); opacity: 0.22; }
+.st-failed .ag-g-arc { opacity: 0; }
+.st-failed .ag-g-track { fill: var(--red); opacity: 0.2; }
+.st-idle .ag-g-mark { stroke-width: 3; }
+
+.ag-main { flex: 1; min-width: 0; }
+.ag-name { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+.ag-cwd { margin-top: 1px; color: var(--faint); font-family: "Cascadia Mono", Consolas, monospace; font-size: 11px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+/* rtl: a long path is cut at its start, so the folder's own name stays visible */
+
+.ag-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.ag-pill { padding: 1px 8px; border-radius: 99px; color: var(--st); font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+  white-space: nowrap; background: rgba(255, 255, 255, 0.06); }
+.st-working .ag-pill { background: rgba(10, 132, 255, 0.16); }
+.st-input .ag-pill { background: rgba(255, 159, 10, 0.18); }
+.st-done .ag-pill { background: rgba(48, 209, 88, 0.14); }
+.st-failed .ag-pill { background: rgba(255, 69, 58, 0.16); }
+.ag-time { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.ag-time b { color: var(--text); font-weight: 600; }
+.st-done .ag-time b, .st-stopped .ag-time b, .st-failed .ag-time b { color: var(--muted); }
+.st-input .ag-time b { color: var(--orange); }
+
+/* a new agent slides in; a status change flashes the row once */
+.ag-enter { animation: ag-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.15); }
+.ag-changed { animation: ag-flash 0.9s ease-out; }
+@keyframes ag-spin { to { transform: rotate(360deg); } }
+@keyframes ag-pulse { 50% { opacity: 0.35; } }
+@keyframes ag-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
+@keyframes ag-flash { 0% { background: rgba(255, 255, 255, 0.16); } }
+@media (prefers-reduced-motion: reduce) {
+  .ag-enter, .ag-changed, .ag-count i { animation: none !important; }
+  .st-working .ag-g-arc { animation-duration: 3s; }
+}
+
+/* 2x1: one line per agent, no folder */
+.ag-compact .ag-cwd, .ag-compact .ag-pill { display: none; }
+.ag-compact .ag-row { padding: 5px 9px; }
+.ag-compact .tile-head { margin-bottom: 8px; }

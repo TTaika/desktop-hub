@@ -17,6 +17,7 @@ tools/fetch_tuya_keys.py  gets the bulbs' local keys (Smart Life QR login) into 
         calendar.py       Google Calendar via assistant/tools/calendar_tool.py
         presets.py        saved layouts, and the global hotkey + number that switches between them
         assistant.py      the voice assistant (Clanker) through its local API: conversation, typed questions, approvals
+        agents.py         Claude Code agents on this PC, read from ~/.claude/jobs and ~/.claude/sessions
 wallpaper/                Wallpaper Engine project: a loader that frames http://127.0.0.1:8765/
 overlay/                  C# + Ultralight host that shows the page as a transparent overlay on monitor 2
 ```
@@ -140,6 +141,20 @@ and highlights. `options` per widget:
 | discord | `interval` (ms, default 400), `dms` (unread DMs along the bottom; click one to open it in Discord), `sound` (play `sounds/dm.wav` for a DM while in a call), `expire` (minutes before an unread DM is dropped, default 180) |
 | assistant | `speak` (read answers to typed questions aloud, default `false`), `backendSwitch` (show Local / Cloud / Auto, default `true`). 2×2 up to 4×4 |
 | discord_chat | `text` (`small`, `normal`, `large`), `avatars`. The server channel open in Discord, found from the Discord window title; DMs can't be shown. Pictures show as thumbnails (gifs as a still frame); click one to open it in the browser |
+| agents | `hours` (how long finished agents stay listed, default 12), `terminals` (also list terminals you have open, default `true`), `interval` (ms, default 2000). 2×1 up to 4×4; at 2×1 one line per agent |
+
+## The Claude agents widget
+
+Every Claude Code agent on this PC, background jobs and open terminals alike, with its name, the folder it works in
+(`~\aikansio\desktop_hub`) and its status. Agents that **need input** come first, with an orange glow and how long
+they have been waiting, then the **working** ones, with a spinner and how long they have spent on the current task.
+**Idle** ones come next, and last the finished ones: **Done**, **Failed** or **Stopped** (the process ended mid-task),
+each with the time it finished and how long the task took. The header counts how many need you, are working and are idle.
+Hover a row for what the agent is doing, or for its result.
+
+The time counts from your latest message to that agent, not from when the session was opened. The widget only reads
+Claude Code's own files (`~/.claude/jobs/*/state.json` and `timeline.jsonl`, `~/.claude/sessions/*.json`); it
+never writes to them or talks to the agents.
 
 ## Colours, type and motion
 
@@ -173,6 +188,9 @@ Tile styles go in `"tile_style"` for every widget, or `"style"` on one widget:
 - `bare`: no box, just shadowed text on the wallpaper. Suits the clock.
 
 ## Adding a widget
+
+The full recipe (meta and settings fields, CSS conventions, what breaks in the overlay, provider rules, and how to
+test on a second port with headless Chrome) is in [CLAUDE.md](CLAUDE.md). In short:
 
 1. Create `web/widgets/<type>/widget.js`:
 

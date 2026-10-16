@@ -1,5 +1,7 @@
 // The voice assistant (Clanker): the conversation, whether spoken (push-to-talk) or typed here, its approvals
-// with Yes / No buttons, and which model answers (local, cloud, or auto).
+// with Yes / No buttons, and which model answers (local, cloud, or auto). A route answer comes with a small map
+// (car, walk, bike) or the public transport options as blocks, like reittiopas. ↺ makes the assistant forget the
+// earlier messages (it keeps the last few as short-term memory).
 // The assistant is its own service (voice_assistant, providers/assistant.py relays); this tile only shows and asks.
 // options (also set from the editor, see meta.settings): { speak: false, backendSwitch: true }
 import { h, header, icon, withDefaults } from "../../lib.js";
@@ -128,6 +130,9 @@ const PATHS = {
   spark: "M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z",
   mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM19 11a7 7 0 0 1-14 0M12 18v3",
   shield: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z",
+  reset: "M3 12a9 9 0 1 0 2.6-6.4L3 8M3 3v5h5",
+  walk: "M13 3.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM11 21l1.5-6.5L15 17v4M8.5 12.5L11 8.5l3 1.5 2.5 3M11 8.5l1.5 6",
+  out: "M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5",
 };
 const glyph = (name, size) => PATHS[name]
   ? h("svg", { class: "icon", width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
@@ -139,6 +144,118 @@ const clock = t => {
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
+// ---- What a route tool found, under its reply (item.view, from voice_assistant/assistant/tools/travel_tool.py)
+
+// HSL's own colours, so the blocks read like reittiopas
+const LEG_COLORS = { bus: "#007ac9", tram: "#00985f", metro: "#ff6319", train: "#8c4799", ferry: "#00b9e4",
+  bike: "#fcbc19", funicular: "#00985f" };
+const ROUTE_COLORS = { driving: "#0a84ff", walking: "#30d158", cycling: "#ffd60a" };
+const MODE_WORDS = { driving: "by car", walking: "on foot", cycling: "by bike" };
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+function routeView(v, open) {
+  const box = h("div", { class: "as-view as-map", title: "Open in Google Maps", onclick: () => open(v.link) });
+  box.append(h("div", { class: "as-map-pill" }, h("b", {}, v.duration), ` · ${v.distance_km} km ${MODE_WORDS[v.mode] || ""}`),
+    h("div", { class: "as-map-credit" }, "Esri, HERE, Garmin, © OpenStreetMap"));
+  // drawn once the box is in the list and has a width
+  let tries = 0;
+  const draw = () => {
+    if (!box.isConnected || !box.clientWidth) { if (tries++ < 20) requestAnimationFrame(draw); return; }
+    drawMap(box, v, box.clientWidth, box.clientHeight || 150);
+  };
+  requestAnimationFrame(draw);
+  return box;
+}
+
+// Web Mercator, as the map tiles are drawn: pixels at zoom z
+function project(lat, lon, z) {
+  const s = 256 * Math.pow(2, z), r = lat * Math.PI / 180;
+  return [(lon + 180) / 360 * s, (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * s];
+}
+
+function drawMap(box, v, W, H) {
+  const pts = v.points && v.points.length > 1 ? v.points : [v.a, v.b];
+  const all = pts.concat([v.a, v.b]);
+  // the closest zoom at which the whole route fits, with room for the markers and the pill on top
+  // (16 is as far as the basemap goes)
+  let z = 16, minX, maxX, minY, maxY;
+  for (; z > 2; z--) {
+    const xy = all.map(p => project(p[0], p[1], z));
+    minX = Math.min.apply(null, xy.map(p => p[0])); maxX = Math.max.apply(null, xy.map(p => p[0]));
+    minY = Math.min.apply(null, xy.map(p => p[1])); maxY = Math.max.apply(null, xy.map(p => p[1]));
+    if (maxX - minX <= W - 40 && maxY - minY <= H - 56) break;
+  }
+  const left = Math.round((minX + maxX) / 2 - W / 2), top = Math.round((minY + maxY) / 2 - H / 2 - 8);
+  const tiles = h("div", { class: "as-map-tiles" });
+  const n = Math.pow(2, z);
+  for (let ty = Math.floor(top / 256); ty <= Math.floor((top + H) / 256); ty++) {
+    for (let tx = Math.floor(left / 256); tx <= Math.floor((left + W) / 256); tx++) {
+      if (ty < 0 || ty >= n) continue;
+      const x = ((tx % n) + n) % n;
+      tiles.append(h("img", { class: "as-tile", alt: "", draggable: "false",
+        // Esri's dark gray canvas: no API key needed (CARTO's basemaps now want one)
+        src: `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${ty}/${x}`,
+        style: { left: `${tx * 256 - left}px`, top: `${ty * 256 - top}px` } }));
+    }
+  }
+  const at = p => { const q = project(p[0], p[1], z); return [q[0] - left, q[1] - top]; };
+  const line = pts.map(p => at(p).map(c => c.toFixed(1)).join(",")).join(" ");
+  const color = ROUTE_COLORS[v.mode] || "#0a84ff";
+  const a = at(v.a), b = at(v.b);
+  const straight = !(v.points && v.points.length > 1);      // no route line from the router: just where to where
+  const svg = h("svg", { class: "as-map-line", width: W, height: H, viewBox: `0 0 ${W} ${H}` },
+    h("polyline", { points: line, fill: "none", stroke: "#000", "stroke-width": 7, opacity: 0.35,
+      "stroke-linecap": "round", "stroke-linejoin": "round" }),
+    h("polyline", { points: line, fill: "none", stroke: color, "stroke-width": 4, "stroke-linecap": "round",
+      "stroke-linejoin": "round", "stroke-dasharray": straight ? "2 7" : null }),
+    h("circle", { cx: a[0], cy: a[1], r: 5, fill: "#fff", stroke: "#1c1c1e", "stroke-width": 2 }),
+    h("circle", { cx: b[0], cy: b[1], r: 6.5, fill: color, stroke: "#fff", "stroke-width": 2.5 }));
+  box.prepend(tiles, svg);
+}
+
+function legBlock(s) {
+  const walk = s.mode === "walk";
+  const label = walk ? [glyph("walk", 11), s.min >= 4 ? h("span", {}, String(s.min)) : null]
+    : [s.line || cap(s.mode)];
+  return h("div", { class: `as-leg${walk ? " as-leg-walk" : ""}`, title: walk ? `Walk ${s.min} min` : `${cap(s.mode)} ${s.line}`,
+    style: { flexGrow: Math.max(s.min, 1), background: walk ? null : (LEG_COLORS[s.mode] || "#636366") } },
+    ...label.filter(Boolean));
+}
+
+function legSteps(o, to) {
+  const rows = o.steps.map(s => {
+    const walk = s.mode === "walk" || s.mode === "bike";
+    const color = walk ? "rgba(255, 255, 255, 0.35)" : (LEG_COLORS[s.mode] || "#636366");
+    const what = walk
+      ? h("div", { class: "as-step-what" }, `${cap(s.mode)} ${s.min} min`, s.m ? h("span", { class: "as-step-sub" }, ` · ${s.m} m`) : null,
+        h("div", { class: "as-step-sub" }, `to ${s.to}`))
+      : h("div", { class: "as-step-what" }, h("b", {}, `${cap(s.mode)} ${s.line}`), s.head ? ` → ${s.head}` : "",
+        h("div", { class: "as-step-sub" }, `${s.from} → ${s.to} · ${s.end}`));
+    return h("div", { class: "as-step" }, h("span", { class: "as-step-time num" }, s.start),
+      h("i", { class: "as-step-dot", style: { background: color } }), what);
+  });
+  rows.push(h("div", { class: "as-step" }, h("span", { class: "as-step-time num" }, o.arrives),
+    h("i", { class: "as-step-dot as-step-end" }), h("div", { class: "as-step-what" }, h("b", {}, cap(to)))));
+  return h("div", { class: "as-steps" }, rows);
+}
+
+function transitView(v, open) {
+  let shown = v.open || 0;
+  const box = h("div", { class: "as-view as-trip" });
+  // each option is a strip of blocks; the open one (the one asked about, else the first) also lists its legs
+  const draw = () => box.replaceChildren(
+    ...v.options.map((o, i) => h("div", { class: `as-opt${i === shown ? " on" : ""}`,
+      onclick: () => { shown = i === shown ? -1 : i; draw(); } },
+      h("div", { class: "as-opt-head" }, h("b", { class: "num" }, `${o.leaves} – ${o.arrives}`),
+        h("span", { class: "as-opt-dur" }, o.duration)),
+      h("div", { class: "as-strip" }, o.steps.map(legBlock)),
+      i === shown ? legSteps(o, v.to) : null)),
+    h("button", { class: "as-trip-link", onclick: () => open(v.link) },
+      v.arrive_by ? `Be there by ${v.arrive_by} · Reittiopas` : "Reittiopas", glyph("out", 11)));
+  draw();
+  return box;
+}
+
 export function mount(el, { options, api }) {
   const o = withDefaults(meta, options);
   const title = header("Assistant");
@@ -146,7 +263,10 @@ export function mount(el, { options, api }) {
   const dot = h("i", { class: "as-dot" });
   const stateText = h("span");
   const status = h("button", { class: "as-status", title: "" }, dot, stateText);
-  title.append(status);
+  const reset = h("button", { class: "as-reset press", title: "Start over: forget the earlier messages",
+    onclick: () => api.post("assistant", { forget: true }).then(r => { if (r.error) flash(r.error); })
+      .catch(() => flash("The hub's server is offline")) }, glyph("reset", 14));
+  title.append(h("div", { class: "as-head-right" }, reset, status));
   const modeBtns = MODES.map(([mode, label]) => h("button", { class: "as-mode", "data-mode": mode,
     onclick: () => setBackend(mode) }, label));
   const modes = h("div", { class: "as-modes" }, modeBtns);
@@ -221,6 +341,11 @@ export function mount(el, { options, api }) {
     } catch (e) { flash("The hub's server is offline"); }
   }
 
+  // the overlay can't open a browser itself: the hub's server does
+  function openLink(url) {
+    api.post("assistant", { open: url }).catch(() => flash("The hub's server is offline"));
+  }
+
   function flash(text) {
     const n = h("div", { class: "as-notice as-flash" }, text);
     list.append(n);
@@ -234,11 +359,14 @@ export function mount(el, { options, api }) {
       return h("div", { class: "as-row as-me" }, h("div", { class: "as-col" },
         h("div", { class: "as-bubble" },
           i.via === "voice" ? h("span", { class: "as-via", title: "Spoken" }, glyph("mic", 12)) : null, i.text)));
-    if (i.kind === "reply")
-      return h("div", { class: "as-row" }, avatar(quiet), h("div", { class: "as-col" },
-        h("div", { class: "as-bubble" }, i.text),
+    if (i.kind === "reply") {
+      const view = !i.view ? null : i.view.kind === "route" ? routeView(i.view, openLink)
+        : i.view.kind === "transit" && i.view.options && i.view.options.length ? transitView(i.view, openLink) : null;
+      return h("div", { class: "as-row" }, avatar(quiet), h("div", { class: `as-col${view ? " as-has-view" : ""}` },
+        h("div", { class: "as-bubble" }, i.text), view,
         h("div", { class: "as-meta" }, i.backend ? h("span", { class: `as-tag as-${i.backend}` }, i.backend) : null,
           i.t ? h("span", {}, clock(i.t)) : null)));
+    }
     if (i.kind === "approval") {
       const open = !i.result && snap && snap.approval && snap.approval.id === i.id;
       return h("div", { class: `as-approval${i.result ? " " + i.result : ""}` },

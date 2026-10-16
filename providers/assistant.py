@@ -7,6 +7,8 @@ GET  /api/assistant?since=<seq>&wait=<s>  -> the assistant's state and new conve
                                              until something changes; {"online": false} if it isn't running
 POST /api/assistant {"ask": "text", "speak": false} | {"approve": true|false} | {"backend": "local"|"cloud"|"auto"}
                     | {"stop": true} | {"preload": true} (the user started typing: load the local model now)
+                    | {"forget": true} (start over: the assistant forgets the earlier exchanges)
+                    | {"open": url} (a route in Google Maps or reittiopas.hsl.fi, opened here in the browser)
 The editor's Assistant settings (kept by the assistant in its config/settings.json, never in layout.json):
 GET  /api/assistant?settings=1          the model settings; the cloud key only as "...abcd"
 GET  /api/assistant?models=cloud|local  models on offer
@@ -16,6 +18,7 @@ POST /api/assistant {"settings": {"cloud_api_key", "cloud_provider", "cloud_mode
 The assistant's API refuses requests from browsers; this server calls it without an Origin.
 """
 import json
+import os
 import urllib.error
 import urllib.request
 from urllib.parse import urlencode
@@ -24,6 +27,7 @@ from hub_config import CONFIG
 
 URL = (CONFIG.get("assistant_url") or "http://127.0.0.1:8766").rstrip("/")
 MAX_WAIT = 10        # under the overlay's 15 s request timeout
+OPENABLE = ("https://www.google.com/maps/", "https://reittiopas.hsl.fi/")    # the links in a reply's route view
 
 
 def _call(method: str, path: str, body=None, timeout: float = 5):
@@ -64,6 +68,12 @@ def get(params: dict) -> dict:
 
 
 def post(body: dict) -> dict:
+    if "open" in body:              # the overlay can't open a browser itself
+        url = str(body["open"])
+        if not url.startswith(OPENABLE):
+            return {"error": "not a route link"}
+        os.startfile(url)
+        return {"ok": True}
     if "ask" in body:
         path, payload = "/ask", {"text": str(body["ask"]), "speak": bool(body.get("speak", False))}
     elif "approve" in body:
@@ -74,6 +84,8 @@ def post(body: dict) -> dict:
         path, payload = "/stop", {}
     elif "preload" in body:
         path, payload = "/preload", {}
+    elif "forget" in body:
+        path, payload = "/forget", {}
     elif isinstance(body.get("settings"), dict):
         path, payload = "/settings", body["settings"]
     elif "test" in body:

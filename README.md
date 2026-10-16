@@ -115,6 +115,12 @@ The widget shows the same conversation whichever way you used it:
   and the page only ever sees its last four characters.
 - **Status** in the header: Ready, Listening, Transcribing, Thinking, Needs approval, Speaking. Click it while it
   speaks to stop it.
+- **Memory:** the assistant keeps the last 5 exchanges for 30 minutes, so follow-ups ("and by bike?", "why?", a name
+  you told it) work. **↺** next to the status makes it forget them and start over; the conversation stays on screen.
+- **Routes:** a car, walking or cycling answer comes with a small map of the route (map tiles from Esri's dark gray
+  basemap, no key needed). A public transport answer shows each option as a strip of blocks in HSL's colours (walk,
+  bus, tram, metro, train) with its legs listed under the open one; click an option to open or close it. Clicking
+  the map or **Reittiopas** opens the full route in the browser (Google Maps or reittiopas.hsl.fi).
 
 In the overlay, clicking the field gives the overlay the keyboard until you press Esc or click another window.
 At all other times it never takes the focus. When the assistant isn't running, the tile says so and
@@ -139,7 +145,7 @@ and highlights. `options` per widget:
 | lights | `name` (bulb or room, default `"all"`), `rows` (`["temps", "colours", "scenes"]`), `interval` (ms, default 10000). Also 2×1, where it shows two rows |
 | calendar | `view` (`"day"`, `"week"`, `"month"`), `locale`. Day and week are time grids (busy and free hours at a glance). Month lists each day's events by name when the tile is at least 3 wide and 2 tall, up to the whole screen (with start times from 4 wide), and otherwise shows each day's busy hours as a strip; hover an event or a day for details. Any size from 2×1 up to the whole grid. Needs the calendar setup above |
 | discord | `interval` (ms, default 400), `dms` (unread DMs along the bottom; click one to open it in Discord), `expire` (minutes before an unread DM is dropped, default 180) |
-| assistant | `speak` (read answers to typed questions aloud, default `false`), `backendSwitch` (show Local / Cloud / Auto, default `true`). 2×2 up to 4×4 |
+| assistant | `speak` (read answers to typed questions aloud, default `false`), `backendSwitch` (show Local / Cloud / Auto, default `true`). Route answers show a map or the transit legs as blocks. 2×2 up to 4×4 |
 | discord_chat | `text` (`small`, `normal`, `large`), `avatars`. The server channel open in Discord, found from the Discord window title; DMs can't be shown. Pictures show as thumbnails (gifs as a still frame); click one to open it in the browser |
 | agents | `hours` (how long finished agents stay listed, default 12), `terminals` (also list terminals you have open, default `true`), `interval` (ms, default 2000). 2×1 up to 4×4; at 2×1 one line per agent |
 

@@ -8,9 +8,12 @@ Each agent: {id, name, cwd ("~\\aikansio\\desktop_hub"), kind ("job" | "terminal
 status: "working", "idle", "input" (needs input), "done", "failed" or "stopped" (the process is gone mid-task).
 
 Read straight from Claude Code's own files, nothing is written:
-  ~/.claude/jobs/<id>/state.json      a background job: state working | blocked | done | failed, tempo active | idle
-  ~/.claude/jobs/<id>/timeline.jsonl  its state changes. A line with no "text" that repeats a finished state is a
-                                      message from you, so the latest one is where the current task began.
+  ~/.claude/jobs/<id>/state.json      a background job: state working | blocked | done | failed, tempo active | idle.
+                                      After you reply, state stays "blocked" (or "done") while it works on it; tempo
+                                      is "active" then, so that is what says it's working.
+  ~/.claude/jobs/<id>/timeline.jsonl  its state changes. A line with "text" in a finished state is where it ended a
+                                      turn; a line with no "text" that repeats a finished state is a message from you,
+                                      so the latest one is where the current task began.
   ~/.claude/sessions/<pid>.json       each running claude process; "interactive" ones are terminals (busy | idle).
                                       Files of exited processes stay behind, so the pid is checked.
 """
@@ -26,7 +29,7 @@ CLAUDE = Path.home() / ".claude"
 ENDED = {"blocked", "done", "failed"}
 _lock = threading.Lock()
 _cache = {"t": 0.0, "key": None, "value": None}
-_timelines = {}                 # path -> ((mtime, size), task start ms)
+_timelines = {}                 # path -> ((mtime, size), (task start ms, last turn end ms))
 
 
 def _ms(iso) -> int | None:
@@ -50,17 +53,18 @@ def _home(cwd: str) -> str:
         return cwd or ""
 
 
-def _task_start(path: Path) -> int | None:
-    """When your latest message to the job arrived, from its timeline. Cached until the file changes."""
+def _timeline(path: Path) -> tuple:
+    """(when your latest message to the job arrived, when it last ended a turn), from its timeline; either may be
+    None. Cached until the file changes."""
     try:
         st = path.stat()
     except OSError:
-        return None
+        return None, None
     stamp = (st.st_mtime_ns, st.st_size)
     hit = _timelines.get(path)
     if hit and hit[0] == stamp:
         return hit[1]
-    start, prev = None, None
+    start, end, prev = None, None, None
     try:
         with open(path, encoding="utf-8") as f:
             for line in f:
@@ -70,11 +74,13 @@ def _task_start(path: Path) -> int | None:
                     continue
                 if prev and prev.get("state") in ENDED and not e.get("text") and e.get("state") == prev.get("state"):
                     start = _ms(e.get("at"))
+                elif e.get("state") in ENDED and e.get("text"):
+                    end = _ms(e.get("at"))
                 prev = e
     except OSError:
-        return None
-    _timelines[path] = (stamp, start)
-    return start
+        return None, None
+    _timelines[path] = (stamp, (start, end))
+    return start, end
 
 
 def _live_sessions() -> list:
@@ -104,10 +110,14 @@ def _job(d: Path, live: dict, now: int) -> dict | None:
     state, proc = s.get("state"), live.get(jid)
     created = _ms(s.get("createdAt")) or now
     updated = _ms(s.get("updatedAt")) or created
-    ended = _ms(s.get("lastTerminalAt"))
-    start = _task_start(d / "timeline.jsonl") or created
+    start, turn_end = _timeline(d / "timeline.jsonl")
+    start = start or created
+    # updatedAt keeps moving while it works on your reply, so it can't say when the last turn ended
+    ended = turn_end or _ms(s.get("lastTerminalAt"))
     finished = None
-    if state == "done":
+    if state in ENDED and s.get("tempo") == "active":       # you replied and it's on that now
+        status = "working"
+    elif state == "done":
         status, finished = "done", ended or updated
     elif state == "failed":
         status, finished = "failed", ended or updated

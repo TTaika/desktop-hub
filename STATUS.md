@@ -7,6 +7,8 @@
   - discord: StreamKit RPC login, already authorized; the token is in `data/`
   - layout: the editor's backend
 - Widgets: clock, system, processes, discord (call + unread DMs), discord_chat, lights, calendar. Each one has `meta` for the editor.
+- **Assistant routes and memory** (2026-10-16): route answers show a map (car, walk, bike) or the HSL options as
+  blocks with their legs; ↺ makes the assistant forget the conversation. The assistant keeps 5 exchanges for 30 min.
 - **Claude agents** widget (2026-10-16): Claude Code jobs and terminals with status, folder, task time and finish
   time, from `~/.claude/jobs` and `~/.claude/sessions` (providers/agents.py). How to add a widget: CLAUDE.md.
 - **Apple-style redesign** (following the `apple-design` skill, installed in `~/.claude/skills/apple-design`):

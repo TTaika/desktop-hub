@@ -11,6 +11,9 @@
   blocks with their legs; ↺ makes the assistant forget the conversation. The assistant keeps 5 exchanges for 30 min.
 - **Claude agents** widget (2026-10-16): Claude Code jobs and terminals with status, folder, task time and finish
   time, from `~/.claude/jobs` and `~/.claude/sessions` (providers/agents.py). How to add a widget: CLAUDE.md.
+- **To-do** widget (2026-10-18): a todo.txt file (providers/todo.py) with deadlines, priorities and +tags; add, tick
+  off and delete from the tile. The file is meant to be shared with the phone (Markor) and Linux laptop (sleek) over
+  Syncthing; writes are atomic and a line changed elsewhere since the last read is never overwritten.
 - **Apple-style redesign** (following the `apple-design` skill, installed in `~/.claude/skills/apple-design`):
   Apple's dark system colours and label greys as tokens in `hub.css`, translucent tile material with a lit top
   edge, Segoe UI Variable with tracking set per size, springs (`spring()` in `lib.js`) for every value change,

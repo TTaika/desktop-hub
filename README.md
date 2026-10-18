@@ -18,6 +18,7 @@ tools/fetch_tuya_keys.py  gets the bulbs' local keys (Smart Life QR login) into 
         presets.py        saved layouts, and the global hotkey + number that switches between them
         assistant.py      the voice assistant (Clanker) through its local API: conversation, typed questions, approvals
         agents.py         Claude Code agents on this PC, read from ~/.claude/jobs and ~/.claude/sessions
+        todo.py           a todo.txt file (deadlines, +tags), shared with other devices by Syncthing
 wallpaper/                Wallpaper Engine project: a loader that frames http://127.0.0.1:8765/
 overlay/                  C# + Ultralight host that shows the page as a transparent overlay on monitor 2
 ```
@@ -150,6 +151,7 @@ and highlights. `options` per widget:
 | assistant | `speak` (read answers to typed questions aloud, default `false`), `backendSwitch` (show Local / Cloud / Auto, default `true`). Route answers show a map or the transit legs as blocks. 2×2 up to 4×4 |
 | discord_chat | `text` (`small`, `normal`, `large`), `avatars`. The server channel open in Discord, found from the Discord window title; DMs can't be shown. Pictures show as thumbnails (gifs as a still frame); click one to open it in the browser |
 | agents | `hours` (how long finished agents stay listed, default 12), `terminals` (also list terminals you have open, default `true`), `interval` (ms, default 2000). 2×1 up to 4×4; at 2×1 one line per agent |
+| todo | `tag` (only tasks with this `+tag` or `@context`; new tasks get it too), `done` (keep tasks ticked off today, default `true`), `add` (the add field, default `true`), `interval` (ms, default 3000). Reads and writes the [todo.txt](http://todotxt.org) file at `todo.file` in `config.json` (default `data/todo.txt`): `(A)` priority, `+tag`, `@context`, `due:2026-10-25`. Typing `due:fri`, `due:tomorrow` or `due:today` saves the date. Tick a task off with its circle, hover it for ×. The same file can be edited in sleek (Windows, Linux) or Markor (Android) and synced with Syncthing; a Syncthing conflict copy next to the file is flagged on the tile. 2×1 up to 4×4 |
 
 ## The Claude agents widget
 

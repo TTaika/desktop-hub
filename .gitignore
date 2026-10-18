@@ -16,3 +16,4 @@ __pycache__/
 
 # Throwaway test pages
 web/_*/
+.claude/

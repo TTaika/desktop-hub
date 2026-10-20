@@ -14,7 +14,54 @@ export const meta = {
       default: "week" },
     { key: "locale", label: "Language for dates (e.g. en-GB, fi-FI)", type: "text", default: "en-GB" },
   ],
+  panel: loginPanel,
 };
+
+// The Google login, in the editor's Calendar settings: it belongs to the calendar tool, not to layout.json.
+// "Log in" opens Google's consent in this PC's browser; the panel follows along until it's done.
+function loginPanel({ api, h }) {
+  const root = h("div", { class: "cal-login" });
+  const note = h("div", { class: "cal-login-note" });
+  let timer = 0;
+
+  const show = r => {
+    clearTimeout(timer);
+    if (!root.isConnected && timer) return;            // the settings were closed
+    const st = r.state || "error";
+    note.textContent = r.error || r.message || "";
+    note.className = `cal-login-note ${st === "ok" || st === "ics" ? "good" : st === "logging_in" ? "" : "bad"}`;
+    const file = h("input", { type: "file", accept: ".json,application/json", style: { display: "none" },
+      onchange: () => {
+        const f = file.files[0];
+        if (!f) return;
+        const rd = new FileReader();
+        rd.onload = () => send({ credentials: String(rd.result) });
+        rd.readAsText(f);
+      } });
+    const btn = (label, cls, onclick, title) => h("button", { class: `cal-login-btn ${cls}`, onclick, title: title || "" }, label);
+    const login = st === "logging_in" ? null
+      : st === "no_client" || st === "ics" || st === "error" ? null
+      : btn(st === "ok" ? "Log in again" : "Log in with Google", st === "ok" ? "" : "primary", () => send({ login: true }));
+    const client = st === "logging_in" ? null
+      : btn(st === "no_client" ? "Choose the OAuth client file..." : "Replace client file...", st === "no_client" ? "primary" : "",
+          () => file.click(), r.credentials ? `Saved as ${r.credentials}` : "");
+    root.replaceChildren(...[
+      h("div", { class: "cal-login-head" }, "Google login"),
+      note,
+      h("div", { class: "cal-login-row" }, ...[login, client, file].filter(Boolean)),
+      st === "no_client" ? h("div", { class: "cal-login-help" },
+        "Google Cloud Console: make a project, enable the Google Calendar API, create an OAuth client of type " +
+        "\"Desktop app\" and download its JSON. Then choose that file here and log in.") : null,
+    ].filter(Boolean));
+    if (st === "logging_in") timer = setTimeout(refresh, 1500);
+  };
+  const send = body => api.post("calendar", body).then(show, () => show({ error: "The hub's server is offline" }));
+  const refresh = () => api.get("calendar", { status: 1 }).then(show, () => show({ error: "The hub's server is offline" }));
+
+  root.append(h("div", { class: "cal-login-note" }, "Checking the calendar login..."));
+  refresh();
+  return root;
+}
 
 const DAY = 86400000, HOUR = 3600000;
 const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;

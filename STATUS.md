@@ -30,8 +30,8 @@
   three fixes (see overlay/README.md). `web/compat.js` covers what its engine lacks.
 
 ## Open problems
-- **Calendar login** expires after 7 days while the Google app is in "testing" mode. Log in again: in voice_assistant run
-  `py -3.13 -m assistant.tools.calendar_tool --login`, or set the app to "In production" in Google Cloud Console.
+- **Calendar login** expires after 7 days while the Google app is in "testing" mode. Log in again from the calendar tile's ⚙ in
+  the editor (Google login: status, "Log in with Google", choose the OAuth client file), or set the app to "In production" in Google Cloud Console.
   For it to stop expiring, publish the OAuth app ("In production") in Google Cloud Console.
 - Not yet tried by hand: clicking through to desktop icons, Win+D, and the lights controls in the overlay.
 - **The Wallpaper Engine web wallpaper shows flat grey (#808080) on monitor 2.** WE's browser

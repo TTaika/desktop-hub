@@ -6,9 +6,14 @@ GET /api/calendar?view=day|week|month
       "events": [{"title", "start", "end", "all_day", "calendar", "color", "busy",
                   "location", "description"}]}   (ISO times, local zone)
      or {"error": str}
+GET  /api/calendar?status=1   -> {"state": "ok"|"ics"|"no_client"|"missing"|"expired"|"logging_in", "message",
+                                  "credentials": path of the OAuth client file}   (the editor's ⚙ panel)
+POST /api/calendar {"login": true}          opens Google's consent in this PC's browser (in a background thread)
+POST /api/calendar {"credentials": "{...}"} saves the OAuth client JSON downloaded from Google Cloud Console
 day = today, week = this Monday to Sunday, month = the Monday-to-Sunday weeks that cover this month.
 Cached for 5 minutes per view.
 """
+import json
 import sys
 import threading
 import time
@@ -22,6 +27,8 @@ _lock = threading.Lock()
 _cache = {}                  # view -> (monotonic time, value)
 _colors = {"t": 0.0, "map": {}}
 _ct = None
+_login = {"running": False, "error": None}    # the login started from the editor
+LOGIN_TIMEOUT_S = 300
 
 
 def _tool():
@@ -43,13 +50,12 @@ def _check_login(ct):
         return None
     if ct.backend() != "oauth":
         return f"The calendar isn't set up: save your Google OAuth client as {cfg.GOOGLE_CREDENTIALS} (see README)."
-    import json
     try:
         token = json.loads(cfg.GOOGLE_TOKEN.read_text(encoding="utf-8"))
     except (FileNotFoundError, ValueError):
         token = {}
     if not token.get("refresh_token"):
-        return f"Calendar login missing: {_login_hint(cfg)}"
+        return f"Calendar login missing. Log in from the tile's ⚙ in the editor, or {_login_hint(cfg)}"
     return None
 
 
@@ -99,7 +105,7 @@ def _load(view: str) -> dict:
         events, failed = ct.fetch_events(start, end)
     except Exception as e:
         if "invalid_grant" in str(e):            # Google expires logins of apps in "testing" mode after 7 days
-            return {"error": f"The calendar login has expired. Log in again: {_login_hint(ct.config)}"}
+            return {"error": f"The calendar login has expired. Log in again from the tile's ⚙ in the editor, or {_login_hint(ct.config)}"}
         return {"error": f"Could not read the calendar: {e}"}
     colors = _calendar_colors(ct) if ct.backend() == "oauth" else {}
     return {
@@ -112,7 +118,74 @@ def _load(view: str) -> dict:
     }
 
 
+def _status() -> dict:
+    ct = _tool()
+    cfg = ct.config
+    out = {"credentials": str(cfg.GOOGLE_CREDENTIALS)}
+    if _login["running"]:
+        return {**out, "state": "logging_in", "message": "Waiting for you to finish the login in the browser..."}
+    if ct.backend() == "ics":
+        return {**out, "state": "ics", "message": "Reading the calendar's secret iCal address (read-only)."}
+    if ct.backend() != "oauth":
+        return {**out, "state": "no_client", "message": "Not set up: add the OAuth client file from Google Cloud Console."}
+    if _check_login(ct):
+        return {**out, "state": "missing", "message": _login["error"] or "Not logged in."}
+    get({"view": "day"})                        # an expired login only shows when reading (cached 5 minutes)
+    with _lock:
+        expired = any("expired" in (v.get("error") or "") for _, v in _cache.values())
+    if expired:
+        return {**out, "state": "expired", "message": "The login has expired (Google does that after 7 days while the app is in testing mode)."}
+    return {**out, "state": "ok", "message": _login["error"] or "Logged in."}
+
+
+def _run_login(ct):
+    """Google's consent in this PC's default browser; the token lands where the calendar tool reads it."""
+    try:
+        from google_auth_oauthlib.flow import InstalledAppFlow
+        flow = InstalledAppFlow.from_client_secrets_file(str(ct.config.GOOGLE_CREDENTIALS), ct.SCOPES)
+        creds = flow.run_local_server(port=0, open_browser=True, timeout_seconds=LOGIN_TIMEOUT_S,
+                                      authorization_prompt_message=None,   # it prints; pythonw has no stdout
+                                      success_message="Logged in. You can close this tab and go back to the hub.",
+                                      access_type="offline", prompt="consent")   # always hand out a refresh token
+        ct.config.GOOGLE_TOKEN.write_text(creds.to_json(), encoding="utf-8")
+        ct._service = None                      # build a new client with the new token
+        _login["error"] = None
+    except Exception as e:
+        _login["error"] = f"The login failed: {e}"
+    finally:
+        with _lock:
+            _cache.clear()
+        _colors.update(t=0.0, map={})
+        _login["running"] = False
+
+
+def post(body: dict) -> dict:
+    ct = _tool()
+    if isinstance(body.get("credentials"), str):
+        try:
+            client = json.loads(body["credentials"])
+        except ValueError:
+            return {"error": "That file isn't JSON. Download the OAuth client's JSON from Google Cloud Console."}
+        if not isinstance(client, dict) or not ("installed" in client or "web" in client):
+            return {"error": "That isn't an OAuth client file. Create one of type \"Desktop app\" and download its JSON."}
+        ct.config.GOOGLE_CREDENTIALS.parent.mkdir(parents=True, exist_ok=True)
+        ct.config.GOOGLE_CREDENTIALS.write_text(json.dumps(client, indent=2), encoding="utf-8")
+        with _lock:
+            _cache.clear()
+        return _status()
+    if body.get("login"):
+        if ct.backend() != "oauth":
+            return {"error": "Add the OAuth client file first."}
+        if not _login["running"]:
+            _login.update(running=True, error=None)
+            threading.Thread(target=_run_login, args=(ct,), name="calendar-login", daemon=True).start()
+        return _status()
+    return {"error": "nothing to do"}
+
+
 def get(params: dict) -> dict:
+    if params.get("status"):
+        return _status()
     view = params.get("view", "week")
     if view not in ("day", "week", "month"):
         return {"error": "view must be day, week or month"}

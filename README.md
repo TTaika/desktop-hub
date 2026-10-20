@@ -36,8 +36,10 @@ Needs Windows, Python 3.13 (`py -3.13 -m pip install -r requirements.txt`) and, 
 3. The first time, Discord shows an **Authorize** window. The token is kept in `data/discord_token.json`.
    To log out, delete that file.
 4. **Calendar** (optional): in Google Cloud Console, make a project, enable the Google Calendar API, create an
-   OAuth client ID of type *Desktop app* and save its JSON as `data/google_credentials.json`. Then log in once with
-   `py -3.13 -m assistant.tools.calendar_tool --login` in this folder. Set `"timezone"` in `config.json`
+   OAuth client ID of type *Desktop app* and download its JSON. Then, in the editor, open the calendar tile's ⚙:
+   **Choose the OAuth client file...** saves it, and **Log in with Google** opens the consent in your browser
+   (or from a terminal: save it as `data/google_credentials.json` and run
+   `py -3.13 -m assistant.tools.calendar_tool --login` in this folder). Set `"timezone"` in `config.json`
    (e.g. `"Europe/Helsinki"`). Google expires the login after 7 days while the OAuth app is in "testing" mode;
    set it to "In production" to keep it. Read-only alternative without Google Cloud: put the calendar's
    "secret address in iCal format" in `calendar.ics_url`.

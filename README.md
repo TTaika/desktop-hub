@@ -161,11 +161,12 @@ Every Claude Code agent on this PC, background jobs and open terminals alike, wi
 (`~\aikansio\desktop_hub`) and its status. Agents that **need input** come first, with an orange glow and how long
 they have been waiting, then the **working** ones, with a spinner and how long they have spent on the current task.
 **Idle** ones come next, and last the finished ones: **Done**, **Failed** or **Stopped** (the process ended mid-task),
-each with the time it finished and how long the task took. An agent left idle (or waiting for you) for an hour drops
+each with how long ago it finished. An agent left idle (or waiting for you) for an hour drops
 off the list, so it only shows the ones you are actually using. The header counts how many need you, are working and are idle.
 Hover a row for what the agent is doing, or for its result.
 
-The time counts from your latest message to that agent, not from when the session was opened. The widget only reads
+The timer under the status is how long the agent has had that status (working since your latest message, idle or
+done since it stopped); hover it for when that began and how long the last task took. The widget only reads
 Claude Code's own files (`~/.claude/jobs/*/state.json` and `timeline.jsonl`, `~/.claude/sessions/*.json`); it
 never writes to them or talks to the agents.
 

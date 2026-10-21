@@ -1,5 +1,5 @@
 // Claude Code agents on this PC: background jobs and open terminals, what each is doing, where, and for how long.
-// The ones that need you come first, then the ones still working; finished ones show when they finished.
+// The ones that need you come first, then the ones still working. The timer is how long it has had its status.
 // providers/agents.py reads Claude Code's own files (~/.claude/jobs, ~/.claude/sessions).
 // options (also set from the editor, see meta.settings): { hours: 12, idle: 60, terminals: true, interval: 2000 }
 // idle: minutes an idle agent (or one waiting for you) stays listed, 0 = always
@@ -24,12 +24,11 @@ const SHORT = { input: "need you", working: "working", idle: "idle" };
 const ACTIVE = new Set(["input", "working", "idle"]);
 const order = a => STATUS[a.status] ? STATUS[a.status][1] : 9;
 
-function fmtSpan(ms, rough) {          // rough: no seconds past the first minute
+function fmtSpan(ms) {
   const s = Math.max(0, Math.floor(ms / 1000)), d = Math.floor(s / 86400), hh = Math.floor(s % 86400 / 3600),
     mm = Math.floor(s % 3600 / 60), ss = s % 60;
   if (d) return `${d}d ${hh}h`;
   if (hh) return `${hh}h ${String(mm).padStart(2, "0")}m`;
-  if (rough) return mm ? `${mm} min` : `${ss}s`;
   return `${mm}m ${String(ss).padStart(2, "0")}s`;
 }
 
@@ -74,21 +73,20 @@ export function mount(el, { options, api, size }) {
     return r;
   }
 
-  function tick() {
+  function tick() {                         // how long each agent has had its current status
     const now = Date.now() + skew;
     for (const a of agents) {
       const r = rows.get(a.id);
       if (!r) continue;
-      if (a.status === "done" || a.status === "failed" || a.status === "stopped") {
-        r.time.replaceChildren(h("b", {}, fmtWhen(a.finished)), h("span", {}, ` · took ${fmtSpan(a.finished - a.started, true)}`));
-        r.time.title = `Worked ${fmtSpan(a.finished - a.started)} on the last task, finished ${new Date(a.finished).toLocaleString("en-GB")}`;
-      } else if (a.status === "input") {
-        r.time.replaceChildren(h("span", {}, "waiting "), h("b", {}, fmtSpan(now - a.finished)));
-        r.time.title = `Worked ${fmtSpan(a.finished - a.started)}, then asked you something`;
-      } else {
-        r.time.replaceChildren(h("b", {}, fmtSpan(now - a.started)));
-        r.time.title = a.status === "idle" ? "Since the task began; nothing running right now" : "On the current task";
-      }
+      const since = a.since || a.finished || a.started;
+      r.time.replaceChildren(h("b", {}, fmtSpan(now - since)));
+      const label = STATUS[a.status] ? STATUS[a.status][0] : a.status;
+      if (a.status === "done" || a.status === "failed" || a.status === "stopped")
+        r.time.title = `${label} since ${fmtWhen(a.finished)}; the last task took ${fmtSpan(a.finished - a.started)}`;
+      else if (a.status === "input")
+        r.time.title = `Waiting for you since ${fmtWhen(since)}, after working ${fmtSpan(a.finished - a.started)}`;
+      else
+        r.time.title = `${label} since ${fmtWhen(since)}`;
     }
   }
 

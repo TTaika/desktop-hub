@@ -5,7 +5,8 @@ GET /api/agents?hours=<h>&idle=<min>  -> {"agents": [...], "now": <ms>}, newest 
                               minutes of no activity (default 60, 0 = never). Cached 1 s.
 
 Each agent: {id, name, cwd ("~\\aikansio\\desktop_hub"), kind ("job" | "terminal"), status, detail, result,
-             started (ms, when the current task began), finished (ms, when it ended or started waiting; else null)}
+             started (ms, when the current task began), finished (ms, when it ended or started waiting; else null),
+             since (ms, when it got its current status)}
 status: "working", "idle", "input" (needs input), "done", "failed" or "stopped" (the process is gone mid-task).
 
 Read straight from Claude Code's own files, nothing is written:
@@ -135,7 +136,8 @@ def _job(d: Path, live: dict, now: int) -> dict | None:
     result = (s.get("output") or {}).get("result") if isinstance(s.get("output"), dict) else None
     return {"id": jid, "name": s.get("name") or jid, "cwd": _home(s.get("cwd") or ""), "kind": "job",
             "status": status, "detail": s.get("detail") or "", "result": result or "",
-            "started": start, "finished": finished, "session": s.get("sessionId"), "activity": finished or updated}
+            "started": start, "finished": finished, "since": finished or (start if status == "working" else updated),
+            "session": s.get("sessionId"), "activity": finished or updated}
 
 
 def _collect(hours: float, idle_min: float) -> list:
@@ -166,7 +168,7 @@ def _collect(hours: float, idle_min: float) -> list:
         since = s.get("statusUpdatedAt") or s.get("startedAt") or now
         agents.append({"id": str(s.get("pid")), "name": s.get("name") or "Terminal", "cwd": _home(s.get("cwd") or ""),
                        "kind": "terminal", "status": "working" if busy else "idle", "detail": "", "result": "",
-                       "started": since if busy else s.get("startedAt") or since, "finished": None,
+                       "started": since if busy else s.get("startedAt") or since, "finished": None, "since": since,
                        "session": s.get("sessionId"), "activity": now if busy else since})
     keep = now - hours * 3_600_000
     agents = [a for a in agents if a["status"] not in ("done", "failed", "stopped") or a["activity"] >= keep]

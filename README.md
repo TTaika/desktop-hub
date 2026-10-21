@@ -152,7 +152,7 @@ and highlights. `options` per widget:
 | discord | `interval` (ms, default 400), `dms` (unread DMs along the bottom; click one to open it in Discord), `expire` (minutes before an unread DM is dropped, default 180) |
 | assistant | `speak` (read answers to typed questions aloud, default `false`), `backendSwitch` (show Local / Cloud / Auto, default `true`). Route answers show a map or the transit legs as blocks. 2×2 up to 4×4 |
 | discord_chat | `text` (`small`, `normal`, `large`), `avatars`. The server channel open in Discord, found from the Discord window title; DMs can't be shown. Pictures show as thumbnails (gifs as a still frame); click one to open it in the browser |
-| agents | `hours` (how long finished agents stay listed, default 12), `terminals` (also list terminals you have open, default `true`), `interval` (ms, default 2000). 2×1 up to 4×4; at 2×1 one line per agent |
+| agents | `hours` (how long finished agents stay listed, default 12), `idle` (minutes an idle agent, or one waiting for you, stays listed, default 60, 0 = always), `terminals` (also list terminals you have open, default `true`), `interval` (ms, default 2000). 2×1 up to 4×4; at 2×1 one line per agent |
 | todo | `tag` (only tasks with this `+tag` or `@context`; new tasks get it too), `done` (keep tasks ticked off today, default `true`), `add` (the add field, default `true`), `interval` (ms, default 3000). Reads and writes the [todo.txt](http://todotxt.org) file at `todo.file` in `config.json` (default `data/todo.txt`): `(A)` priority, `+tag`, `@context`, `due:2026-10-25`. Typing `due:fri`, `due:tomorrow` or `due:today` saves the date. Tick a task off with its circle, hover it for ×. The same file can be edited in sleek (Windows, Linux) or Markor (Android) and synced with Syncthing; a Syncthing conflict copy next to the file is flagged on the tile. 2×1 up to 4×4 |
 
 ## The Claude agents widget
@@ -161,7 +161,8 @@ Every Claude Code agent on this PC, background jobs and open terminals alike, wi
 (`~\aikansio\desktop_hub`) and its status. Agents that **need input** come first, with an orange glow and how long
 they have been waiting, then the **working** ones, with a spinner and how long they have spent on the current task.
 **Idle** ones come next, and last the finished ones: **Done**, **Failed** or **Stopped** (the process ended mid-task),
-each with the time it finished and how long the task took. The header counts how many need you, are working and are idle.
+each with the time it finished and how long the task took. An agent left idle (or waiting for you) for an hour drops
+off the list, so it only shows the ones you are actually using. The header counts how many need you, are working and are idle.
 Hover a row for what the agent is doing, or for its result.
 
 The time counts from your latest message to that agent, not from when the session was opened. The widget only reads

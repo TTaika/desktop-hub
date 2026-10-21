@@ -1,7 +1,8 @@
 """Claude Code agents on this PC: background jobs and open terminal sessions, for the agents widget.
 
-GET /api/agents?hours=<h>  -> {"agents": [...], "now": <ms>}, newest activity first. Finished agents are kept for
-                              `hours` (default 12). Cached 1 s.
+GET /api/agents?hours=<h>&idle=<min>  -> {"agents": [...], "now": <ms>}, newest activity first. Finished agents are
+                              kept for `hours` (default 12); idle ones and ones waiting for you are dropped after `idle`
+                              minutes of no activity (default 60, 0 = never). Cached 1 s.
 
 Each agent: {id, name, cwd ("~\\aikansio\\desktop_hub"), kind ("job" | "terminal"), status, detail, result,
              started (ms, when the current task began), finished (ms, when it ended or started waiting; else null)}
@@ -137,30 +138,41 @@ def _job(d: Path, live: dict, now: int) -> dict | None:
             "started": start, "finished": finished, "session": s.get("sessionId"), "activity": finished or updated}
 
 
-def _collect(hours: float) -> list:
+def _collect(hours: float, idle_min: float) -> list:
     now = int(time.time() * 1000)
     sessions = _live_sessions()
     live = {s["jobId"]: s for s in sessions if s.get("jobId")}
-    agents, claimed = [], set()
+    agents, by_id, by_session = [], {}, {}
     for d in (CLAUDE / "jobs").iterdir() if (CLAUDE / "jobs").is_dir() else []:
         if d.is_dir():
             a = _job(d, live, now)
             if a:
                 agents.append(a)
-                claimed.update(x for x in (a["id"], a["session"]) if x)
+                by_id[a["id"]] = a
+                if a["session"]:
+                    by_session[a["session"]] = a
     # terminals you have open yourself; a terminal that was moved to the background is already listed as its job
     for s in sessions:
-        if s.get("kind") != "interactive" or s.get("sessionId") in claimed or s.get("parkedJobId") in claimed:
+        if s.get("kind") != "interactive" or s.get("parkedJobId") in by_id:
             continue
+        job = by_session.get(s.get("sessionId"))
+        if job:
+            # the same conversation as a job: the job is it while it runs or was active since this terminal opened,
+            # otherwise it's an old job (often one that failed to start) resumed here, and the terminal is it now
+            if job["id"] in live or job["activity"] >= (s.get("startedAt") or now):
+                continue
+            agents.remove(job)
         busy = s.get("status") == "busy"
         since = s.get("statusUpdatedAt") or s.get("startedAt") or now
         agents.append({"id": str(s.get("pid")), "name": s.get("name") or "Terminal", "cwd": _home(s.get("cwd") or ""),
                        "kind": "terminal", "status": "working" if busy else "idle", "detail": "", "result": "",
                        "started": since if busy else s.get("startedAt") or since, "finished": None,
                        "session": s.get("sessionId"), "activity": now if busy else since})
-        claimed.add(s.get("sessionId"))
     keep = now - hours * 3_600_000
     agents = [a for a in agents if a["status"] not in ("done", "failed", "stopped") or a["activity"] >= keep]
+    if idle_min:                    # left idle (or waiting for you) that long: not something you're following
+        quiet = now - idle_min * 60_000
+        agents = [a for a in agents if a["status"] not in ("idle", "input") or a["activity"] >= quiet]
     agents.sort(key=lambda a: -a["activity"])
     for a in agents:
         del a["session"], a["activity"]
@@ -172,7 +184,11 @@ def get(params: dict) -> dict:
         hours = max(0.0, float(params.get("hours", 12)))
     except ValueError:
         hours = 12.0
+    try:
+        idle_min = max(0.0, float(params.get("idle", 60)))
+    except ValueError:
+        idle_min = 60.0
     with _lock:
-        if _cache["key"] != hours or time.monotonic() - _cache["t"] > 1:
-            _cache.update(t=time.monotonic(), key=hours, value=_collect(hours))
+        if _cache["key"] != (hours, idle_min) or time.monotonic() - _cache["t"] > 1:
+            _cache.update(t=time.monotonic(), key=(hours, idle_min), value=_collect(hours, idle_min))
         return {"agents": _cache["value"], "now": int(time.time() * 1000)}

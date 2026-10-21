@@ -1,7 +1,8 @@
 // Claude Code agents on this PC: background jobs and open terminals, what each is doing, where, and for how long.
 // The ones that need you come first, then the ones still working; finished ones show when they finished.
 // providers/agents.py reads Claude Code's own files (~/.claude/jobs, ~/.claude/sessions).
-// options (also set from the editor, see meta.settings): { hours: 12, terminals: true, interval: 2000 }
+// options (also set from the editor, see meta.settings): { hours: 12, idle: 60, terminals: true, interval: 2000 }
+// idle: minutes an idle agent (or one waiting for you) stays listed, 0 = always
 import { h, header, withDefaults } from "../../lib.js";
 
 export const css = true;
@@ -10,6 +11,7 @@ export const meta = {
   defaultSize: "2x2", minSize: "2x1", maxSize: "4x4",
   settings: [
     { key: "hours", label: "Keep finished agents for", type: "range", min: 0, max: 48, step: 1, unit: " h", default: 12 },
+    { key: "idle", label: "Hide idle agents after", type: "range", min: 0, max: 240, step: 15, unit: " min", default: 60 },
     { key: "terminals", label: "Show terminals you have open", type: "bool", default: true },
   ],
 };
@@ -126,7 +128,7 @@ export function mount(el, { options, api, size }) {
       order(a) - order(b) ||
       (ACTIVE.has(a.status) ? a.started - b.started : b.finished - a.finished));
     render();
-  }, { hours: o.hours });
+  }, { hours: o.hours, idle: o.idle });
 
   const timer = setInterval(() => { if (!el.isConnected) clearInterval(timer); else if (!document.hidden) tick(); }, 1000);
 }

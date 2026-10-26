@@ -98,10 +98,12 @@ The widget shows the same conversation whichever way you used it:
 - **Talk:** hold the push-to-talk key (F9) anywhere, games included. What it heard and what it answered appear in
   the tile, with a mic mark on spoken lines.
 - **Type:** click the field at the bottom, type, press Enter. Answers to typed questions are shown, not spoken,
-  unless you switch on "Read answers to typed questions aloud" in the tile's ⚙. While an approval is open, typing
-  yes or no answers it. Esc leaves the field.
+  unless you switch on "Read answers to typed questions aloud" in the tile's ⚙; a typed command's approval isn't
+  read aloud either. While an approval is open, typing yes or no answers it. Esc leaves the field.
 - **Approve:** anything that changes files, the calendar, the volume or a program shows an approval card with
   **Yes** / **No**. Saying yes or no with push-to-talk still works too. No answer within a minute means no.
+  A new calendar event's card also has colour swatches (Google Calendar's event colours): pick one before **Yes**.
+  The last pick is preselected next time; a spoken yes keeps the calendar's own colour.
 - **Model:** **Local** (Ollama on the GTX 1660), **Cloud** (Claude through Anthropic's API, or any OpenAI-compatible
   service), or **Auto** (local, and the cloud when Ollama is down or fails). The choice is saved by the assistant and
   shared with its tray settings. Each answer is tagged with the model that wrote it. The Cloud button is dimmed until

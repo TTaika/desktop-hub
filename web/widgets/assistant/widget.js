@@ -349,9 +349,49 @@ export function mount(el, { options, api }) {
     } catch (e) { flash("The hub's server is offline"); }
   }
 
-  async function approve(yes) {
+  // what is picked on an open approval's choices (an event's colour), by approval id, so a re-render keeps it.
+  // The last pick of each choice is remembered as the next one's starting value.
+  const picks = new Map();
+  function pickFor(i) {
+    if (!picks.has(i.id)) {
+      const p = {};
+      for (const c of i.choices || []) {
+        let last = null;
+        try { last = localStorage.getItem("as-pick-" + c.key); } catch (e) {}
+        p[c.key] = c.options.some(op => op[0] === last) ? last : c.options[0][0];
+      }
+      picks.set(i.id, p);
+    }
+    return picks.get(i.id);
+  }
+
+  function choicesView(i) {
+    const p = pickFor(i);
+    return h("div", { class: "as-ap-choices" }, ...i.choices.map(c => {
+      const name = h("span", { class: "as-ch-name" });
+      const swatches = c.options.map(([value, label, colour]) => h("button", {
+        class: `as-swatch press${colour ? "" : " as-sw-none"}`, title: label, "data-v": value,
+        style: colour ? { background: colour } : {},
+        onclick: () => { p[c.key] = value; mark(); } }));
+      function mark() {
+        swatches.forEach(b => b.classList.toggle("on", b.dataset.v === p[c.key]));
+        const o = c.options.find(op => op[0] === p[c.key]);
+        name.textContent = o ? o[1] : "";
+      }
+      mark();
+      return h("div", { class: "as-ch" }, h("div", { class: "as-ch-head" }, h("span", {}, c.label), name),
+        h("div", { class: "as-swatches" }, ...swatches));
+    }));
+  }
+
+  async function approve(yes, i) {
+    const body = { approve: yes };
+    if (yes && i && i.choices) {
+      body.choices = pickFor(i);
+      for (const k in body.choices) try { localStorage.setItem("as-pick-" + k, body.choices[k]); } catch (e) {}
+    }
     try {
-      const r = await api.post("assistant", { approve: yes });
+      const r = await api.post("assistant", body);
       if (r.error) flash(r.error);
     } catch (e) { flash("The hub's server is offline"); }
   }
@@ -387,9 +427,10 @@ export function mount(el, { options, api }) {
       return h("div", { class: `as-approval${i.result ? " " + i.result : ""}` },
         h("div", { class: "as-ap-head" }, glyph("shield", 14), h("span", {}, "Approval")),
         h("div", { class: "as-ap-text" }, i.text),
+        open && i.choices ? choicesView(i) : null,
         open ? h("div", { class: "as-ap-btns" },
           h("button", { class: "as-no press", onclick: () => approve(false) }, "No"),
-          h("button", { class: "as-yes press", onclick: () => approve(true) }, "Yes"))
+          h("button", { class: "as-yes press", onclick: () => approve(true, i) }, "Yes"))
           : h("div", { class: "as-ap-result" }, i.result === "approved" ? "Approved" : i.result === "denied" ? "Not approved" : "Closed"));
     }
     return h("div", { class: "as-notice" }, i.text);

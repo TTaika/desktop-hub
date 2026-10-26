@@ -5,7 +5,8 @@ conversation whether you spoke or typed, and answers its approvals.
 GET  /api/assistant?since=<seq>&wait=<s>  -> the assistant's state and new conversation items (see
                                              voice_assistant/assistant/engine.py), held up to `wait` seconds
                                              until something changes; {"online": false} if it isn't running
-POST /api/assistant {"ask": "text", "speak": false} | {"approve": true|false} | {"backend": "local"|"cloud"|"auto"}
+POST /api/assistant {"ask": "text", "speak": false} | {"approve": true|false, "choices"?: {"color": "11"}}
+                    | {"backend": "local"|"cloud"|"auto"}
                     | {"stop": true} | {"preload": true} (the user started typing: load the local model now)
                     | {"forget": true} (start over: the assistant forgets the earlier exchanges)
                     | {"open": url} (a route in Google Maps or reittiopas.hsl.fi, opened here in the browser)
@@ -78,6 +79,8 @@ def post(body: dict) -> dict:
         path, payload = "/ask", {"text": str(body["ask"]), "speak": bool(body.get("speak", False))}
     elif "approve" in body:
         path, payload = "/approve", {"approve": bool(body["approve"])}
+        if isinstance(body.get("choices"), dict):      # what was picked on the approval (an event's colour)
+            payload["choices"] = body["choices"]
     elif "backend" in body:
         path, payload = "/backend", {"mode": str(body["backend"])}
     elif "stop" in body:

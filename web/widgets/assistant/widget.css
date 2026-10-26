@@ -87,6 +87,17 @@
 .as-ap-btns button { flex: 1; padding: 8px 0; border-radius: 10px; font-size: 13.5px; font-weight: 600; }
 .as-no { background: var(--fill-strong); }
 .as-yes { background: var(--orange); color: rgba(0, 0, 0, 0.85); }
+/* choices picked before Yes: an event's colour */
+.as-ap-choices { margin-top: 9px; }
+.as-ch-head { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11.5px; }
+.as-ch-name { color: var(--text); font-weight: 600; }
+.as-swatches { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 6px; }
+.as-swatch { flex: none; width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid transparent;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15); transition: transform 0.12s; }
+.as-swatch.on { border-color: rgba(0, 0, 0, 0.55); box-shadow: 0 0 0 2px #fff; transform: scale(1.1); }
+.as-sw-none { background: linear-gradient(135deg, transparent 45%, var(--muted) 45%, var(--muted) 55%, transparent 55%),
+  var(--fill-strong); }
+@media (prefers-reduced-motion: reduce) { .as-swatch { transition: none; } }
 .as-ap-result { margin-top: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
 
 /* typing */

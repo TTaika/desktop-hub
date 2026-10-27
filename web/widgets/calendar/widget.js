@@ -1,7 +1,9 @@
 // Your Google Calendar (through the voice assistant's login): today, this week, or this month.
 // Day and week are time grids, so the free and busy hours show at a glance. Month lists each day's events by
 // name when the tile has room for them (3x2 and up, the whole screen included), and otherwise shows each day's
-// busy hours as a small strip. Hovering an event (or a day of the month) shows its details.
+// busy hours as a small strip. Hovering an event (or a day of the month) shows its details. In the month view the
+// arrows beside the month's name step to other months (clicking the name comes back to this one, and so does
+// five minutes without a click).
 // options (also set from the editor, see meta.settings): { view: "day" | "week" | "month", locale: "en-GB" }
 import { h, header, withDefaults } from "../../lib.js";
 
@@ -74,9 +76,25 @@ export function mount(el, { options, api, size }) {
   const time = d => d.toLocaleTimeString(L, { hour: "2-digit", minute: "2-digit" });
   const right = h("span", { class: "num" });
   const body = h("div", { class: "cal-body" });
-  el.append(header("Calendar", "calendar", right), body);
+  let offset = 0, back = 0;                       // months away from this one (month view), and the timer back to it
+  const go = n => {
+    offset = n ? offset + n : 0;
+    clearTimeout(back);
+    if (offset) back = setTimeout(() => el.isConnected && go(0), 5 * 60000);
+    right.textContent = shownMonth(addMonths(new Date(), offset));   // the new name right away, the days when they load
+    poller.stop();
+    poller = api.poll("calendar", 300000, onData, { view: o.view, offset });
+  };
+  const arrow = (dir, label) => h("button", { class: "cal-arrow press", title: label, "aria-label": label,
+    onclick: () => go(dir) }, dir < 0 ? "‹" : "›");
+  const nav = o.view !== "month" ? right : h("span", { class: "cal-nav" },
+    arrow(-1, "Previous month"),
+    h("button", { class: "cal-mname", title: "Back to this month", onclick: () => go(0) }, right),
+    arrow(1, "Next month"));
+  el.append(header("Calendar", "calendar", nav), body);
   el.classList.add(`cal-view-${o.view}`);
   let data = null;
+  const shownMonth = d => d.toLocaleDateString(L, { month: "long", year: "numeric" });
 
   const events = () => data.events.map(e => ({ ...e, s: new Date(e.start), e: new Date(e.end) }));
   const onDay = (list, day) => list.filter(e => e.s < addDays(day, 1) && e.e > day);
@@ -210,8 +228,9 @@ export function mount(el, { options, api, size }) {
 
   function renderMonth(now) {
     const start = new Date(data.start), end = new Date(data.end), list = events(), today = startOfDay(now);
-    const range = hourRange(list);
-    right.textContent = now.toLocaleDateString(L, { month: "long", year: "numeric" });
+    const range = hourRange(list), month = addDays(start, 6);     // the first week's Sunday is always in the month
+    right.textContent = shownMonth(month);
+    right.parentNode.classList.toggle("away", offset !== 0);
     const heads = [];
     for (let i = 0; i < 7; i++)
       heads.push(h("span", { class: "cal-mh" }, addDays(start, i).toLocaleDateString(L, { weekday: "narrow" })));
@@ -219,7 +238,7 @@ export function mount(el, { options, api, size }) {
     const cells = [];
     for (let d = new Date(start); d < end; d = addDays(d, 1)) {
       const evs = onDay(list, d), all = evs.filter(e => e.all_day);
-      const cell = h("div", { class: `cal-cell${d.getMonth() !== now.getMonth() ? " out" : ""}${dayKey(d) === dayKey(today) ? " today" : ""}${d < today ? " past" : ""}` },
+      const cell = h("div", { class: `cal-cell${d.getMonth() !== month.getMonth() ? " out" : ""}${dayKey(d) === dayKey(today) ? " today" : ""}${d < today ? " past" : ""}` },
         h("div", { class: "cal-ch" },
           h("span", { class: "cal-num num" }, String(d.getDate())),
           fit ? null : h("span", { class: "cal-ad" }, all.slice(0, 3).map(e => h("i", { style: { background: color(e) } })))),
@@ -321,14 +340,15 @@ export function mount(el, { options, api, size }) {
     body.replaceChildren(...parts.filter(Boolean));
   }
 
-  api.poll("calendar", 300000, (d, err) => {
+  function onData(d, err) {
     if (err) console.error("calendar: " + String(err));
     data = d || { error: "Hub backend is offline" };
     render();
-  }, { view: o.view });
+  }
+  let poller = api.poll("calendar", 300000, onData, { view: o.view });
   // The time line and the dimming of past events move on with the clock, between data updates
   const tick = setInterval(() => {
-    if (!el.isConnected) { clearInterval(tick); tip.remove(); window.removeEventListener("resize", onResize); }
+    if (!el.isConnected) { clearInterval(tick); clearTimeout(back); poller.stop(); tip.remove(); window.removeEventListener("resize", onResize); }
     else if (!hovered) render();
   }, 60000);
   // whether month days have room for event names depends on the tile's size on screen
@@ -336,6 +356,8 @@ export function mount(el, { options, api, size }) {
   const onResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => el.isConnected && render(), 150); };
   if (o.view === "month") window.addEventListener("resize", onResize);
 }
+
+function addMonths(d, n) { return new Date(d.getFullYear(), d.getMonth() + n, 1); }
 
 function duration(ms) {
   const m = Math.round(ms / 60000), hh = Math.floor(m / 60), mm = m % 60;

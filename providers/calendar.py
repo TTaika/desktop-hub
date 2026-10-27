@@ -1,7 +1,7 @@
 """Your Google Calendar, through the calendar tool in assistant/tools/ (login in data/google_token.json), or the
 voice assistant's own copy when voice_assistant_dir is set, so both share one login and the same calendars.
 
-GET /api/calendar?view=day|week|month
+GET /api/calendar?view=day|week|month[&offset=N]   (offset: months from this one, month view only)
   -> {"view", "start", "end", "today": "YYYY-MM-DD",
       "events": [{"title", "start", "end", "all_day", "calendar", "color", "busy",
                   "location", "description"}]}   (ISO times, local zone)
@@ -11,7 +11,7 @@ GET  /api/calendar?status=1   -> {"state": "ok"|"ics"|"no_client"|"missing"|"exp
 POST /api/calendar {"login": true}          opens Google's consent in this PC's browser (in a background thread)
 POST /api/calendar {"credentials": "{...}"} saves the OAuth client JSON downloaded from Google Cloud Console
 day = today, week = this Monday to Sunday, month = the Monday-to-Sunday weeks that cover this month.
-Cached for 5 minutes per view.
+Cached for 5 minutes per view and month.
 """
 import json
 import sys
@@ -24,7 +24,7 @@ from hub_config import voice_assistant_dir
 
 CACHE_S = 300
 _lock = threading.Lock()
-_cache = {}                  # view -> (monotonic time, value)
+_cache = {}                  # (view, month offset) -> (monotonic time, value)
 _colors = {"t": 0.0, "map": {}}
 _ct = None
 _login = {"running": False, "error": None}    # the login started from the editor
@@ -64,14 +64,15 @@ def _login_hint(cfg) -> str:
     return f"in {folder} run  py -3.13 -m assistant.tools.calendar_tool --login"
 
 
-def _range(view: str, now: datetime):
+def _range(view: str, now: datetime, offset: int = 0):
     day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     if view == "day":
         return day, day + timedelta(days=1)
     monday = day - timedelta(days=day.weekday())
     if view == "week":
         return monday, monday + timedelta(days=7)
-    first = day.replace(day=1)
+    y, m = divmod(day.year * 12 + day.month - 1 + offset, 12)
+    first = day.replace(year=y, month=m + 1, day=1)
     start = first - timedelta(days=first.weekday())
     next_month = (first + timedelta(days=32)).replace(day=1)
     end = next_month + timedelta(days=(7 - next_month.weekday()) % 7)
@@ -94,13 +95,13 @@ def _calendar_colors(ct) -> dict:
     return out
 
 
-def _load(view: str) -> dict:
+def _load(view: str, offset: int = 0) -> dict:
     ct = _tool()
     problem = _check_login(ct)
     if problem:
         return {"error": problem}
     now = datetime.now(ct.TZ)
-    start, end = _range(view, now)
+    start, end = _range(view, now, offset)
     try:
         events, failed = ct.fetch_events(start, end)
     except Exception as e:
@@ -189,8 +190,13 @@ def get(params: dict) -> dict:
     view = params.get("view", "week")
     if view not in ("day", "week", "month"):
         return {"error": "view must be day, week or month"}
+    try:
+        offset = max(-120, min(120, int(params.get("offset") or 0))) if view == "month" else 0
+    except ValueError:
+        return {"error": "offset must be a whole number of months"}
+    key = (view, offset)
     with _lock:
-        hit = _cache.get(view)
+        hit = _cache.get(key)
         if hit is None or time.monotonic() - hit[0] > CACHE_S or hit[1].get("today") != datetime.now().date().isoformat():
-            _cache[view] = (time.monotonic(), _load(view))
-        return _cache[view][1]
+            _cache[key] = (time.monotonic(), _load(view, offset))
+        return _cache[key][1]

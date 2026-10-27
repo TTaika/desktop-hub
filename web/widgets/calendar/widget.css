@@ -128,3 +128,13 @@
 .cal-login-note.good { color: var(--green); }
 .cal-login-note.bad { color: var(--red); }
 .cal-login-help { font-size: 12px; color: var(--faint); line-height: 1.4; }
+
+/* month view: the arrows beside the month's name */
+.cal-nav { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.cal-nav button { border: 0; background: none; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.cal-arrow { width: 20px; height: 20px; border-radius: 6px; font-size: 17px; line-height: 18px; color: var(--faint);
+  transition: background 0.15s, color 0.15s; }
+.cal-arrow:hover { background: var(--fill); color: var(--text); }
+.cal-mname { padding: 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+.cal-mname.away { color: var(--accent); cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .cal-arrow { transition: none; } }

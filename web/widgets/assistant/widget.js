@@ -306,7 +306,8 @@ export function mount(el, { options, api }) {
       h("span", { class: "as-dots" }, h("i"), h("i"), h("i")), typingText)));
   list.append(typing);
   el.append(title, modes, list, empty, composer, offline);
-  window.__hostKeyboardLost = () => input.blur();
+  const lostBefore = window.__hostKeyboardLost;               // shared with other widgets with a text field
+  window.__hostKeyboardLost = () => { input.blur(); if (lostBefore) lostBefore(); };
 
   let since = 0, snap = null, sending = false;
   const items = new Map();          // id -> item

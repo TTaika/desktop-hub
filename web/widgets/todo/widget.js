@@ -47,12 +47,17 @@ export function mount(el, { options, api, size }) {
   const list = h("div", { class: "td-list" });
   const input = h("input", { class: "td-input", type: "text", spellcheck: "false",
     placeholder: filter ? `Add a task (gets +${filter})` : "Add a task  +tag due:fri",
+    // In the overlay the window never has the keyboard; clicking the field asks the host for it (HostKeyboard.cs).
+    onmousedown: () => { if (window.__hostKeyboard) window.__hostKeyboard(1); },
+    onblur: () => { if (window.__hostKeyboard) window.__hostKeyboard(0); },
     onkeydown: e => { if (e.key === "Enter") add(); if (e.key === "Escape") input.blur(); } });
   const addRow = h("div", { class: "td-add" }, h("span", { class: "td-plus" }, "+"), input);
   el.classList.toggle("td-compact", size.h < 2);
   el.append(...[header(filter ? `To-do · ${filter}` : "To-do", "check", summary), banner, list,
     o.add && size.h >= 2 && addRow].filter(Boolean));
 
+  const lostBefore = window.__hostKeyboardLost;               // shared with other widgets with a text field
+  window.__hostKeyboardLost = () => { input.blur(); if (lostBefore) lostBefore(); };
   const rows = new Map();                    // line text (+ #n for repeats) -> row; a line edited elsewhere is a new row
   let poller, busy = false;
 

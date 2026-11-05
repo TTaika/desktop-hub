@@ -1,8 +1,9 @@
 """Claude Code agents on this PC: background jobs and open terminal sessions, for the agents widget.
 
-GET /api/agents?hours=<h>&idle=<min>  -> {"agents": [...], "now": <ms>}, newest activity first. Finished agents are
-                              kept for `hours` (default 12); idle ones and ones waiting for you are dropped after `idle`
-                              minutes of no activity (default 60, 0 = never). Cached 1 s.
+GET /api/agents?hours=<h>&idle=<min>&done=<min>  -> {"agents": [...], "now": <ms>}, newest activity first. Finished
+                              agents are kept for `hours` (default 12), but "done" ones only for `done` minutes (default 30,
+                              0 = until `hours`); idle ones and ones waiting for you are dropped after `idle` minutes of
+                              no activity (default 60, 0 = never). Cached 1 s.
 
 Each agent: {id, name, cwd ("~\\aikansio\\desktop_hub"), kind ("job" | "terminal"), status, detail, result,
              started (ms, when the current task began), finished (ms, when it ended or started waiting; else null),
@@ -140,7 +141,7 @@ def _job(d: Path, live: dict, now: int) -> dict | None:
             "session": s.get("sessionId"), "activity": finished or updated}
 
 
-def _collect(hours: float, idle_min: float) -> list:
+def _collect(hours: float, idle_min: float, done_min: float) -> list:
     now = int(time.time() * 1000)
     sessions = _live_sessions()
     live = {s["jobId"]: s for s in sessions if s.get("jobId")}
@@ -172,6 +173,9 @@ def _collect(hours: float, idle_min: float) -> list:
                        "session": s.get("sessionId"), "activity": now if busy else since})
     keep = now - hours * 3_600_000
     agents = [a for a in agents if a["status"] not in ("done", "failed", "stopped") or a["activity"] >= keep]
+    if done_min:                    # finished fine and read by now: out of the way sooner than failures
+        fresh = now - done_min * 60_000
+        agents = [a for a in agents if a["status"] != "done" or a["activity"] >= fresh]
     if idle_min:                    # left idle (or waiting for you) that long: not something you're following
         quiet = now - idle_min * 60_000
         agents = [a for a in agents if a["status"] not in ("idle", "input") or a["activity"] >= quiet]
@@ -190,7 +194,12 @@ def get(params: dict) -> dict:
         idle_min = max(0.0, float(params.get("idle", 60)))
     except ValueError:
         idle_min = 60.0
+    try:
+        done_min = max(0.0, float(params.get("done", 30)))
+    except ValueError:
+        done_min = 30.0
+    key = (hours, idle_min, done_min)
     with _lock:
-        if _cache["key"] != (hours, idle_min) or time.monotonic() - _cache["t"] > 1:
-            _cache.update(t=time.monotonic(), key=(hours, idle_min), value=_collect(hours, idle_min))
+        if _cache["key"] != key or time.monotonic() - _cache["t"] > 1:
+            _cache.update(t=time.monotonic(), key=key, value=_collect(hours, idle_min, done_min))
         return {"agents": _cache["value"], "now": int(time.time() * 1000)}

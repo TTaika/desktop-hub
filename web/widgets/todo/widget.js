@@ -76,6 +76,64 @@ export function mount(el, { options, api, size }) {
     send({ action: "add", text });
   }
 
+  // The three-dots menu: one popup at a time, closed by any click elsewhere, Escape or scrolling.
+  let menu = null;
+  function closeMenu() {
+    if (!menu) return;
+    menu.row.el.classList.remove("td-menu-open");
+    menu.el.remove();
+    document.removeEventListener("pointerdown", menu.away, true);
+    document.removeEventListener("keydown", menu.key, true);
+    window.removeEventListener("scroll", closeMenu, true);
+    menu = null;
+  }
+  function openMenu(r) {
+    const same = menu && menu.row === r;
+    closeMenu();
+    if (same) return;
+    const item = (label, cls, fn) => h("button", { class: `td-menu-item ${cls}`, onclick: () => { closeMenu(); fn(); } }, label);
+    const el = h("div", { class: "td-menu" },
+      item("Edit", "", () => edit(r)),
+      item("Delete", "danger", () => send({ action: "delete", id: r.t.id, raw: r.t.raw })));
+    document.body.append(el);
+    const b = r.more.getBoundingClientRect();
+    el.style.left = `${Math.max(8, Math.min(b.right - el.offsetWidth, window.innerWidth - el.offsetWidth - 8))}px`;
+    el.style.top = `${b.bottom + el.offsetHeight + 8 > window.innerHeight ? b.top - el.offsetHeight - 4 : b.bottom + 4}px`;
+    r.el.classList.add("td-menu-open");
+    menu = {
+      row: r, el,
+      away: e => { if (!el.contains(e.target) && !r.more.contains(e.target)) closeMenu(); },
+      key: e => { if (e.key === "Escape") closeMenu(); },
+    };
+    document.addEventListener("pointerdown", menu.away, true);
+    document.addEventListener("keydown", menu.key, true);
+    window.addEventListener("scroll", closeMenu, true);
+  }
+
+  // Edit in place: the text becomes a field holding the whole todo.txt line (priority, dates and tags too).
+  function edit(r) {
+    const t = r.t;
+    const field = h("input", { class: "td-edit", type: "text", spellcheck: "false", value: t.raw,
+      onkeydown: e => {
+        if (e.key === "Enter") { e.preventDefault(); done(true); }
+        if (e.key === "Escape") { e.preventDefault(); done(false); }
+      },
+      onblur: () => done(false) });
+    let over = false;
+    function done(save) {
+      if (over) return;
+      over = true;
+      const text = field.value.trim();
+      field.remove();
+      r.text.style.display = "";
+      if (save && text && text !== t.raw) send({ action: "edit", id: t.id, raw: t.raw, text });
+    }
+    r.text.style.display = "none";
+    r.text.after(field);
+    field.focus();
+    field.setSelectionRange(field.value.length, field.value.length);
+  }
+
   function row(t) {
     let r = rows.get(t.key);
     if (r) return r;
@@ -84,8 +142,9 @@ export function mount(el, { options, api, size }) {
         icon("check", 13)),
       text: h("div", { class: "td-text" }), meta: h("div", { class: "td-meta" }), due: h("span", { class: "td-due num" }),
     };
-    r.del = h("button", { class: "td-del press", title: "Delete", onclick: () => send({ action: "delete", id: r.t.id, raw: r.t.raw }) }, "×");
-    r.el = h("div", { class: "td-row td-enter" }, r.check, h("div", { class: "td-main" }, r.text, r.meta), r.due, r.del);
+    r.more = h("button", { class: "td-more press", title: "Edit or delete", onclick: e => { e.stopPropagation(); openMenu(r); } },
+      icon("more", 16));
+    r.el = h("div", { class: "td-row td-enter" }, r.check, h("div", { class: "td-main" }, r.text, r.meta), r.due, r.more);
     r.el.addEventListener("animationend", () => r.el.classList.remove("td-enter"));
     rows.set(t.key, r);
     return r;

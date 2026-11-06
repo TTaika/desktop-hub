@@ -6,6 +6,7 @@ GET  /api/todo  -> {"file", "exists", "tasks": [{id, raw, done, priority, due, c
                     contexts}], "conflicts": [names of Syncthing conflict copies next to the file]}
 POST /api/todo  {"action": "add", "text": "Call dentist +health due:fri"}   (today/tomorrow/weekday names become dates)
                 {"action": "toggle", "id": 3, "raw": "<the line as GET gave it>"}   done <-> not done
+                {"action": "edit", "id": 3, "raw": "...", "text": "(A) the new line"}   replaces the whole line
                 {"action": "delete", "id": 3, "raw": "..."}
 A task is found by its line number and checked against its text, so an edit that synced in meanwhile is never
 overwritten by mistake: the request fails with "changed" and the widget reloads.
@@ -153,6 +154,12 @@ def post(body: dict) -> dict:
             elif action == "toggle":
                 i = _find(lines, body)
                 lines[i] = toggle(lines[i], today)
+            elif action == "edit":
+                i = _find(lines, body)
+                text = " ".join(str(body.get("text", "")).split())
+                if not text:
+                    return {"error": "Empty task"}
+                lines[i] = _dates(text, today)
             elif action == "delete":
                 lines.pop(_find(lines, body))
             else:

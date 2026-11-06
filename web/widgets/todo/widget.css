@@ -37,11 +37,19 @@
 .td-due.u-today { color: var(--orange); }
 .td-due.u-soon { color: var(--yellow); }
 
-/* delete: only on hover, where the due date was */
-.td-del { flex: none; display: none; width: 20px; height: 20px; padding: 0; border-radius: 50%; font-size: 16px; line-height: 1;
-  color: var(--muted); background: var(--fill); }
-.td-row:hover .td-del { display: block; }
-.td-del:hover { color: var(--red); }
+/* three dots (edit / delete): only on hover, or while its menu is open */
+.td-more { flex: none; display: none; width: 22px; height: 22px; padding: 0; border-radius: 50%;
+  color: var(--muted); background: var(--fill); align-items: center; justify-content: center; }
+.td-row:hover .td-more, .td-row.td-menu-open .td-more { display: flex; }
+.td-more:hover { color: var(--text); }
+.td-edit { width: 100%; box-sizing: border-box; min-width: 0; padding: 3px 8px; border: 0; outline: 1px solid var(--accent); border-radius: 8px;
+  background: var(--fill); color: var(--text); font: inherit; font-size: 14px; user-select: text; }
+.td-menu { position: fixed; z-index: 1000; min-width: 120px; padding: 4px; border-radius: 12px; background: #2c2c2e;
+  box-shadow: 0 8px 28px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08); }
+.td-menu-item { display: block; width: 100%; padding: 7px 12px; border-radius: 8px; text-align: left; font-size: 14px;
+  color: var(--text); background: transparent; }
+.td-menu-item:hover { background: var(--fill); }
+.td-menu-item.danger { color: var(--red); }
 
 .td-add { flex: none; display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 6px 10px; border-radius: 14px;
   background: var(--fill); }

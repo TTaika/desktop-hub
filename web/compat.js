@@ -86,3 +86,16 @@ function startFlexGap() {
 
 if (document.body) startFlexGap();
 else document.addEventListener("DOMContentLoaded", startFlexGap);
+
+// In the overlay the window never has the keyboard (overlay/HostKeyboard.cs). Any text field that gets the focus
+// asks the host for it, and hands it back when the focus leaves the text fields; if another window takes the
+// focus, the host calls __hostKeyboardLost and the field blurs. Focus moves within a click, so Windows allows it.
+if (window.__hostKeyboard) {
+  const typing = el => !!el && (el.tagName === "TEXTAREA" || el.isContentEditable ||
+    (el.tagName === "INPUT" && !/^(button|checkbox|radio|range|color|file|submit|reset|image|hidden)$/.test(el.type)));
+  document.addEventListener("focusin", e => { if (typing(e.target)) window.__hostKeyboard(1); });
+  document.addEventListener("focusout", e => {
+    if (typing(e.target) && !typing(e.relatedTarget)) window.__hostKeyboard(0);
+  });
+  window.__hostKeyboardLost = () => { if (typing(document.activeElement)) document.activeElement.blur(); };
+}

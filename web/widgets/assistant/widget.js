@@ -288,10 +288,9 @@ export function mount(el, { options, api }) {
   const list = h("div", { class: "as-list" });
   const empty = h("div", { class: "as-empty" });
   const input = h("input", { class: "as-input", type: "text", maxlength: 500, spellcheck: "false",
-    // In the overlay the window never has the keyboard; clicking the field asks the host for it (HostKeyboard.cs).
-    onmousedown: () => { if (window.__hostKeyboard) window.__hostKeyboard(1); preload(); },
+    // in the overlay, compat.js asks the host for the keyboard when the field gets the focus
+    onmousedown: () => preload(),
     onfocus: () => preload(),
-    onblur: () => { if (window.__hostKeyboard) window.__hostKeyboard(0); },
     onkeydown: e => {
       if (e.key === "Enter") { e.preventDefault(); send(); }
       else if (e.key === "Escape") input.blur();
@@ -306,7 +305,6 @@ export function mount(el, { options, api }) {
       h("span", { class: "as-dots" }, h("i"), h("i"), h("i")), typingText)));
   list.append(typing);
   el.append(title, modes, list, empty, composer, offline);
-  window.__hostKeyboardLost = () => input.blur();
 
   let since = 0, snap = null, sending = false;
   const items = new Map();          // id -> item

@@ -279,8 +279,8 @@ async function save() {
 
 // ------------------------------------------------------------------ drawer --
 function buildDrawer(backgrounds) {
-  const tabs = drawerTabs = { widgets: widgetBank(), background: backgroundPicker(backgrounds), presets: presetsPanel(), settings: null };
-  const names = { widgets: "Widgets", background: "Background", presets: "Presets", settings: "Settings" };
+  const tabs = drawerTabs = { widgets: widgetBank(), background: backgroundPicker(backgrounds), presets: presetsPanel(), screen: screenPanel(), settings: null };
+  const names = { widgets: "Widgets", background: "Background", presets: "Presets", screen: "Screen", settings: "Settings" };
   const tabBtns = Object.keys(tabs).map(k => h("button", { class: "ed-tab", "data-tab": k, onclick: () => show(k) }, names[k]));
   settingsTab = tabBtns.find(b => b.dataset.tab === "settings");
   settingsTab.hidden = true;                // appears once a tile's ⚙ is clicked
@@ -456,6 +456,60 @@ function presetsPanel() {
             p ? "Overwrite" : "Save here"),
           p ? h("button", { class: "eo-btn eo-del", title: "Delete", onclick: () => remove(slot, p) }, "✕") : null);
       }));
+  }
+
+  refresh();
+  return panel;
+}
+
+// ------------------------------------------------------------------ screen --
+// Which monitor the overlay covers (/api/display, saved at once, not part of the layout). The overlay checks every
+// 2 s and moves there. "Automatic" is the overlay's default: the first monitor that isn't the main one.
+function screenPanel() {
+  const panel = h("div", { class: "ed-list" });
+
+  async function choose(id) {
+    try {
+      const r = await api.post("display", { monitor: id });
+      if (r.error) { toast(r.error, true); return; }
+    } catch (e) {
+      toast("Could not reach the hub backend", true);
+      return;
+    }
+    toast("The overlay moves there in a couple of seconds.");
+    refresh();
+  }
+
+  async function refresh() {
+    let info;
+    try { info = await api.get("display"); } catch (e) {
+      panel.replaceChildren(h("p", { class: "ed-hint" }, "Could not reach the hub backend."));
+      return;
+    }
+    const mons = info.monitors;
+    const auto = mons.find(m => !m.primary) || mons[0];
+    const shown = mons.find(m => m.id === info.selected) || auto;
+    // the monitors drawn where Windows has them, scaled into the panel
+    const x0 = Math.min(...mons.map(m => m.x)), y0 = Math.min(...mons.map(m => m.y));
+    const W = Math.max(...mons.map(m => m.x + m.width)) - x0, H = Math.max(...mons.map(m => m.y + m.height)) - y0;
+    const pct = (v, of) => `${(v / of) * 100}%`;
+    panel.replaceChildren(...[
+      h("p", { class: "ed-hint" }, "The screen the overlay covers. Click one to move the hub there. ",
+        "Wallpaper Engine chooses its monitor in its own window."),
+      h("div", { class: "sc-map", style: { aspectRatio: `${W} / ${H}` } },
+        ...mons.map(m => h("button", {
+          class: `sc-mon${m === shown ? " active" : ""}`, title: m.id,
+          style: { left: pct(m.x - x0, W), top: pct(m.y - y0, H), width: pct(m.width, W), height: pct(m.height, H) },
+          onclick: () => choose(m.id) },
+          h("span", { class: "sc-name" }, m.primary ? "Main" : `Screen ${mons.filter(o => !o.primary).indexOf(m) + 2}`),
+          h("span", { class: "sc-res" }, `${m.width} × ${m.height}`)))),
+      h("div", { class: "segs sc-segs" },
+        h("button", { class: `seg${info.selected ? "" : " active"}`, onclick: () => choose(null) }, "Automatic"),
+        h("button", { class: `seg${info.selected ? " active" : ""}`, onclick: () => { if (!info.selected) choose(shown.id); } },
+          "Stay on this screen")),
+      info.selected && !mons.some(m => m.id === info.selected)
+        ? h("p", { class: "ed-hint" }, "The chosen screen isn't connected, so the hub is on the automatic one until it is.")
+        : null].filter(Boolean));
   }
 
   refresh();

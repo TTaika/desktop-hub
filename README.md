@@ -19,6 +19,7 @@ tools/fetch_tuya_keys.py  gets the bulbs' local keys (Smart Life QR login) into 
         assistant.py      the voice assistant (Clanker) through its local API: conversation, typed questions, approvals
         agents.py         Claude Code agents on this PC, read from ~/.claude/jobs and ~/.claude/sessions
         todo.py           a todo.txt file (deadlines, +tags), shared with other devices by Syncthing
+        display.py        the monitors, and which one the overlay covers (the editor's Screen tab)
 wallpaper/                Wallpaper Engine project: a loader that frames http://127.0.0.1:8765/
 overlay/                  C# + Ultralight host that shows the page as a transparent overlay on monitor 2
 ```
@@ -66,9 +67,14 @@ within a few seconds of any change under `web/`.
 Open **http://127.0.0.1:8765/?edit** in a browser. For the true look, use full screen (F11) on the second monitor.
 - Drag a tile to move it, and drag its bottom-right corner to resize it. Green means the spot is free, red means it's taken.
 - Each tile has a style button (auto / default / glass / solid / bare) and a ✕ to remove it.
-- **+ Widgets & background** opens a drawer with two tabs:
+- **+ Widgets & background** opens a drawer with these tabs:
   - **Widgets:** drag a widget onto the grid, or click it to drop it in the first free space.
   - **Background:** pick one of your Wallpaper Engine videos, set how much to darken it, and choose the tile style for all widgets.
+  - **Presets:** see below.
+  - **Screen:** which monitor the overlay covers. Click a screen in the map and the hub moves there within about
+    2 seconds; this is saved at once (`data/display.json`), not with the layout. **Automatic** is the first monitor
+    that isn't the main one. A chosen screen that is unplugged falls back to automatic until it's back. Wallpaper
+    Engine picks its monitor in its own window, so this only moves the overlay.
 - **Save** (Ctrl+S) writes `layout.json`, and the wallpaper switches to it within about a second. **Done** saves and leaves edit mode.
 
 ## Presets and the hotkey

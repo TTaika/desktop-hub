@@ -30,6 +30,8 @@
 - **Overlay (`overlay/`)**: C# + Ultralight 1.3, a transparent window on monitor 2 above any Wallpaper Engine
   wallpaper, scenes included. In the Startup folder since 2026-10-12. Memory levels off at ~100–140 MB after
   three fixes (see overlay/README.md). `web/compat.js` covers what its engine lacks.
+  2026-11-16: the editor's **Screen** tab chooses its monitor (providers/display.py); the overlay checks every 2 s
+  and moves in place (also on WM_DISPLAYCHANGE). Tested moving to the main screen and back.
 
 ## Open problems
 - **Calendar login** expires after 7 days while the Google app is in "testing" mode. Log in again from the calendar tile's ⚙ in

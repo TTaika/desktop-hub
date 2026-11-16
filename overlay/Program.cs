@@ -2,6 +2,7 @@
 // layered window that covers the second monitor. The window is owned by Progman, so it sits above the
 // wallpaper (any Wallpaper Engine wallpaper, scenes included) and below normal windows. Fully transparent
 // pixels pass clicks through to the desktop, so only the tiles take the mouse.
+// The monitor is chosen in the editor (Screen tab, /api/display); the window moves there without reloading the page.
 //
 //   hub_overlay [--url http://127.0.0.1:8765/] [--monitor N] [--fps 60] [--snapshot frame.bgra [--snapshot-at 8]] [--gc seconds] [--purge seconds] [--offscreen 1]
 using System;
@@ -25,10 +26,13 @@ html, body, body.has-bg { background: transparent !important; background-image: 
     static bool fast;
     static long lastPaint;
 
-    static IntPtr renderer, view, hwnd, memDC;
+    static IntPtr renderer, view, hwnd, memDC, bitmap;
     static byte* dib;
     static int width, height, posX, posY;
     static double scale = 1;
+    static int monitorIndex = -1;           // --monitor N, used while the editor's choice is "automatic"
+    static volatile string chosen;          // the editor's monitor (a device name like \\.\DISPLAY2), null = automatic
+    static bool fullFrame;                  // after a move: present the whole frame, not just the changed part
     static int cursor = UL.CursorPointer;
     static bool tracking;
     static StreamWriter log;
@@ -63,7 +67,6 @@ html, body, body.has-bg { background: transparent !important; background-image: 
 
     static int Main(string[] args)
     {
-        int monitorIndex = -1;
         for (int i = 0; i + 1 < args.Length; i += 2)
             switch (args[i])
             {
@@ -95,12 +98,14 @@ html, body, body.has-bg { background: transparent !important; background-image: 
         var dir = AppContext.BaseDirectory;
         log = new StreamWriter(Path.Combine(dir, "overlay.log"), false) { AutoFlush = true };
         Win.SetProcessDpiAwarenessContext(new IntPtr(-4));     // per-monitor v2: work in real pixels
-        PickMonitor(monitorIndex);
+        FetchChoice();
+        PickMonitor();
         Log($"monitor {width}x{height} at {posX},{posY}, scale {scale}");
 
         CreateRenderer(dir);
         CreateWindow();
         CreateView(url);
+        if (!offscreen) new System.Threading.Thread(WatchChoice) { IsBackground = true }.Start();
 
         Win.SetTimer(hwnd, (IntPtr)1, IdleMs, IntPtr.Zero);
         while (Win.GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
@@ -111,24 +116,68 @@ html, body, body.has-bg { background: transparent !important; background-image: 
         return 0;
     }
 
-    // --monitor N picks the Nth monitor; by default the first one that isn't the primary.
-    static void PickMonitor(int index)
+    // The monitor chosen in the editor if it's connected; otherwise --monitor N (the Nth monitor), and by default
+    // the first one that isn't the primary.
+    static void PickMonitor()
     {
-        var monitors = new System.Collections.Generic.List<(IntPtr handle, Win.MONITORINFO info)>();
+        var monitors = new System.Collections.Generic.List<(IntPtr handle, Win.MONITORINFOEX info)>();
         Win.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr mon, IntPtr _, ref Win.RECT _, IntPtr _) =>
         {
-            var info = new Win.MONITORINFO { Size = Marshal.SizeOf<Win.MONITORINFO>() };
+            var info = new Win.MONITORINFOEX { Size = Marshal.SizeOf<Win.MONITORINFOEX>() };
             Win.GetMonitorInfo(mon, ref info);
             monitors.Add((mon, info));
             return true;
         }, IntPtr.Zero);
 
-        var (handle, m) = index >= 0 && index < monitors.Count ? monitors[index]
+        string want = chosen;
+        var (handle, m) = monitors.Find(x => x.info.Device == want) is var c && c.handle != IntPtr.Zero ? c
+            : monitorIndex >= 0 && monitorIndex < monitors.Count ? monitors[monitorIndex]
             : monitors.Find(x => (x.info.Flags & 1) == 0 /* not MONITORINFOF_PRIMARY */) is var s && s.handle != IntPtr.Zero ? s
             : monitors[0];
         posX = m.Monitor.Left; posY = m.Monitor.Top;
         width = m.Monitor.Right - m.Monitor.Left; height = m.Monitor.Bottom - m.Monitor.Top;
         if (Win.GetDpiForMonitor(handle, 0, out var dpi, out _) == 0) scale = dpi / 96.0;
+    }
+
+    // Reads the editor's choice from the server into `chosen`; false (and `chosen` unchanged) if the server is down.
+    static readonly System.Net.Http.HttpClient http = new() { Timeout = TimeSpan.FromSeconds(5) };
+    static bool FetchChoice()
+    {
+        try
+        {
+            var json = http.GetStringAsync(new Uri(new Uri(url), "/api/display")).Result;
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            chosen = doc.RootElement.TryGetProperty("selected", out var v) ? v.GetString() : null;
+            return true;
+        }
+        catch { return false; }
+    }
+
+    // Checks the choice every 2 s and has the UI thread move the window when it changes.
+    static void WatchChoice()
+    {
+        while (true)
+        {
+            System.Threading.Thread.Sleep(2000);
+            string old = chosen;
+            if (FetchChoice() && chosen != old) Win.PostMessage(hwnd, Win.WM_APP, IntPtr.Zero, IntPtr.Zero);
+        }
+    }
+
+    // Moves to the chosen monitor, also when monitors are plugged in or out or change resolution: the window, bitmap
+    // and view take the new size and scale, and the page lays itself out again.
+    static void Reposition()
+    {
+        int x = posX, y = posY, w = width, ht = height;
+        double sc = scale;
+        PickMonitor();
+        if (x == posX && y == posY && w == width && ht == height && sc == scale) return;
+        Log($"monitor {width}x{height} at {posX},{posY}, scale {scale}");
+        if (w != width || ht != height) CreateBitmap();
+        Win.SetWindowPos(hwnd, IntPtr.Zero, posX, posY, width, height, Win.SWP_NOZORDER | Win.SWP_NOACTIVATE);
+        UL.ulViewSetDeviceScale(view, scale);
+        UL.ulViewResize(view, (uint)width, (uint)height);
+        fullFrame = true;
     }
 
     static void CreateRenderer(string dir)
@@ -179,16 +228,23 @@ html, body, body.has-bg { background: transparent !important; background-image: 
         var progman = Win.FindWindow("Progman", null);
         Win.SetWindowLongPtr(hwnd, Win.GWLP_HWNDPARENT, progman);
 
-        // 32-bit top-down DIB the frames are copied into; UpdateLayeredWindow reads it with per-pixel alpha.
+        memDC = Win.CreateCompatibleDC(IntPtr.Zero);
+        CreateBitmap();
+        if (!offscreen) Win.ShowWindow(hwnd, Win.SW_SHOWNOACTIVATE);
+    }
+
+    // 32-bit top-down DIB the frames are copied into; UpdateLayeredWindow reads it with per-pixel alpha.
+    static void CreateBitmap()
+    {
         var bmi = new Win.BITMAPINFOHEADER
         {
             Size = Marshal.SizeOf<Win.BITMAPINFOHEADER>(), Width = width, Height = -height, Planes = 1, BitCount = 32,
         };
-        memDC = Win.CreateCompatibleDC(IntPtr.Zero);
-        var bitmap = Win.CreateDIBSection(memDC, ref bmi, 0, out var bits, IntPtr.Zero, 0);
+        var old = bitmap;
+        bitmap = Win.CreateDIBSection(memDC, ref bmi, 0, out var bits, IntPtr.Zero, 0);
         Win.SelectObject(memDC, bitmap);
+        if (old != IntPtr.Zero) Win.DeleteObject(old);
         dib = (byte*)bits;
-        if (!offscreen) Win.ShowWindow(hwnd, Win.SW_SHOWNOACTIVATE);
     }
 
     static void Frame()
@@ -202,6 +258,11 @@ html, body, body.has-bg { background: transparent !important; background-image: 
 
         var surface = UL.ulViewGetSurface(view);
         var dirty = UL.ulSurfaceGetDirtyBounds(surface);
+        if (fullFrame && !dirty.IsEmpty)
+        {
+            fullFrame = false;
+            dirty = new ULIntRect { Right = width, Bottom = height };
+        }
         if (!dirty.IsEmpty)
         {
             painted++;
@@ -296,6 +357,7 @@ html, body, body.has-bg { background: transparent !important; background-image: 
         switch (msg)
         {
             case Win.WM_TIMER: Frame(); return IntPtr.Zero;
+            case Win.WM_APP: case Win.WM_DISPLAYCHANGE: Reposition(); return IntPtr.Zero;
             // clicking a tile doesn't steal focus, unless a text field asked for the keyboard (HostKeyboard)
             case Win.WM_MOUSEACTIVATE: return new IntPtr(HostKeyboard.On ? Win.MA_ACTIVATE : Win.MA_NOACTIVATE);
             case Win.WM_ACTIVATE:

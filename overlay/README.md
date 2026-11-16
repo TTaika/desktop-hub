@@ -40,7 +40,7 @@ bin\Release\net8.0-windows\hub_overlay.exe [options]
 
 | Option | Default | |
 | --- | --- | --- |
-| `--monitor N` | first non-primary | which monitor to cover |
+| `--monitor N` | first non-primary | which monitor to cover, unless one is chosen in the editor's Screen tab (`/api/display`, checked every 2 s; the window moves without reloading) |
 | `--fps N` | 60 | tick rate while animating |
 | `--url URL` | `http://127.0.0.1:8765/` | page to show |
 | `--gc S` | 10 | seconds between JavaScript collections, 0 = off |

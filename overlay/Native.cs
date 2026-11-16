@@ -60,6 +60,8 @@ static class UL
     [DllImport(Lib)] public static extern void ulViewLoadURL(IntPtr view, IntPtr url);
     [DllImport(Lib)] public static extern void ulViewFocus(IntPtr view);
     [DllImport(Lib)] public static extern IntPtr ulViewGetSurface(IntPtr view);
+    [DllImport(Lib)] public static extern void ulViewResize(IntPtr view, uint width, uint height);
+    [DllImport(Lib)] public static extern void ulViewSetDeviceScale(IntPtr view, double scale);
     [DllImport(Lib)] public static extern void ulViewFireMouseEvent(IntPtr view, IntPtr evt);
     [DllImport(Lib)] public static extern void ulViewFireScrollEvent(IntPtr view, IntPtr evt);
     [DllImport(Lib)] public static extern void ulViewSetAddConsoleMessageCallback(IntPtr view, ConsoleMessage cb, IntPtr userData);
@@ -151,10 +153,10 @@ static class Win
         WM_KEYDOWN = 0x100, WM_KEYUP = 0x101, WM_CHAR = 0x102, WM_SYSKEYDOWN = 0x104, WM_SYSKEYUP = 0x105, WM_SYSCHAR = 0x106,
         WM_MOUSEMOVE = 0x200, WM_LBUTTONDOWN = 0x201, WM_LBUTTONUP = 0x202, WM_RBUTTONDOWN = 0x204,
         WM_RBUTTONUP = 0x205, WM_MBUTTONDOWN = 0x207, WM_MBUTTONUP = 0x208, WM_MOUSEWHEEL = 0x20A,
-        WM_MOUSELEAVE = 0x2A3;
+        WM_MOUSELEAVE = 0x2A3, WM_DISPLAYCHANGE = 0x7E, WM_APP = 0x8000;
     public const int MA_ACTIVATE = 1, MA_NOACTIVATE = 3, HTCLIENT = 1;
     public static readonly IntPtr HWND_BOTTOM = new(1);
-    public const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10;
+    public const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
     public const int IDC_ARROW = 32512, IDC_HAND = 32649;
 
     public delegate IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -164,7 +166,12 @@ static class Win
     [StructLayout(LayoutKind.Sequential)] public struct SIZE { public int Cx, Cy; }
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] public struct MSG { public IntPtr Hwnd; public uint Message; public IntPtr WParam, LParam; public uint Time; public POINT Pt; }
-    [StructLayout(LayoutKind.Sequential)] public struct MONITORINFO { public int Size; public RECT Monitor, Work; public uint Flags; }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct MONITORINFOEX
+    {
+        public int Size; public RECT Monitor, Work; public uint Flags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string Device;
+    }
     [StructLayout(LayoutKind.Sequential)] public struct BLENDFUNCTION { public byte Op, Flags, SourceAlpha, AlphaFormat; }
     [StructLayout(LayoutKind.Sequential)] public struct TRACKMOUSEEVENT { public int Size; public uint Flags; public IntPtr Hwnd; public uint HoverTime; }
     [StructLayout(LayoutKind.Sequential)]
@@ -200,7 +207,8 @@ static class Win
     [DllImport("user32")] public static extern IntPtr SetCursor(IntPtr cursor);
     [DllImport("user32")] public static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT tme);
     [DllImport("user32")] public static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, MonitorEnumProc proc, IntPtr data);
-    [DllImport("user32")] public static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
+    [DllImport("user32", CharSet = CharSet.Unicode)] public static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFOEX info);
+    [DllImport("user32")] public static extern bool PostMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
     [DllImport("user32")] public static extern bool SetProcessDpiAwarenessContext(IntPtr context);
     [DllImport("shcore")] public static extern int GetDpiForMonitor(IntPtr monitor, int type, out uint dpiX, out uint dpiY);
     [StructLayout(LayoutKind.Sequential)]
@@ -213,6 +221,7 @@ static class Win
 
     [DllImport("gdi32")] public static extern IntPtr CreateCompatibleDC(IntPtr hdc);
     [DllImport("gdi32")] public static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
+    [DllImport("gdi32")] public static extern bool DeleteObject(IntPtr obj);
     [DllImport("gdi32")]
     public static extern IntPtr CreateDIBSection(IntPtr hdc, ref BITMAPINFOHEADER bmi, uint usage, out IntPtr bits, IntPtr section, uint offset);
 

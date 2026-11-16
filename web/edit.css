@@ -139,6 +139,16 @@ button.pr-name:hover { text-decoration: underline; }
 .pr-sub { color: var(--muted); font-size: 12px; }
 .pr-sub.bad { color: var(--bad); }
 
+/* screen */
+.sc-map { position: relative; width: 100%; margin: 6px 0; }
+.sc-mon { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border-radius: 10px; background: rgba(255, 255, 255, 0.06); border: 3px solid #1c1f2b; box-sizing: border-box; }
+.sc-mon:hover { background: rgba(255, 255, 255, 0.12); }
+.sc-mon.active { background: rgba(138, 180, 255, 0.22); border-color: #8ab4ff; }
+.sc-name { font-weight: 600; }
+.sc-segs .seg { text-transform: none; }
+.sc-res { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
 /* widget settings (⚙) */
 .st-field .ed-label { margin-bottom: 8px; }
 .st-chips { display: flex; flex-wrap: wrap; gap: 6px; }

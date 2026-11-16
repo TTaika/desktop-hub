@@ -27,6 +27,7 @@ SCOPES = ["https://www.googleapis.com/auth/calendar.events",
           "https://www.googleapis.com/auth/calendar.calendarlist.readonly"]
 TZ = ZoneInfo(config.TIMEZONE)
 _service = None
+_service_mtime = None      # the token file's mtime when _service was built
 _ics_cache = {"at": 0.0, "cal": None}
 
 
@@ -40,9 +41,17 @@ def backend() -> str:
 
 
 # ---------------------------------------------------------------- auth ----
+def _token_mtime():
+    try:
+        return config.GOOGLE_TOKEN.stat().st_mtime
+    except OSError:
+        return None
+
+
 def _get_service():
-    global _service
-    if _service is not None:
+    global _service, _service_mtime
+    # A new login written by another process (the hub's editor, --login) replaces the cached client.
+    if _service is not None and _token_mtime() == _service_mtime:
         return _service
     if not config.GOOGLE_CREDENTIALS.exists():
         raise ToolError(
@@ -69,6 +78,7 @@ def _get_service():
             creds = flow.run_local_server(port=0)
         config.GOOGLE_TOKEN.write_text(creds.to_json(), encoding="utf-8")
     _service = build("calendar", "v3", credentials=creds, cache_discovery=False)
+    _service_mtime = _token_mtime()
     return _service
 
 

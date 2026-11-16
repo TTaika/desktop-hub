@@ -16,6 +16,8 @@
 - **To-do** widget (2026-10-18): a todo.txt file (providers/todo.py) with deadlines, priorities and +tags; add, tick
   off and delete from the tile. The file is meant to be shared with the phone (Markor) and Linux laptop (sleek) over
   Syncthing; writes are atomic and a line changed elsewhere since the last read is never overwritten.
+  2026-11-05: live. The old PC (`ssh vanhapc`, Alpine) is the always-on Syncthing node; this PC syncs the `todo` folder to
+  `C:\Users\eemil\Sync\todo` (config.json `todo.file`). Phone paired with vanhapc the same day; laptop (sleek) not yet.
 - **Apple-style redesign** (following the `apple-design` skill, installed in `~/.claude/skills/apple-design`):
   Apple's dark system colours and label greys as tokens in `hub.css`, translucent tile material with a lit top
   edge, Segoe UI Variable with tracking set per size, springs (`spring()` in `lib.js`) for every value change,

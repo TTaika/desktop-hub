@@ -13,11 +13,14 @@ Read straight from Claude Code's own files, nothing is written:
   ~/.claude/jobs/<id>/state.json      a background job: state working | blocked | done | failed, tempo active | idle.
                                       After you reply, state stays "blocked" (or "done") while it works on it; tempo
                                       is "active" then, so that is what says it's working.
-  ~/.claude/jobs/<id>/timeline.jsonl  its state changes. A line with "text" in a finished state is where it ended a
-                                      turn; a line with no "text" that repeats a finished state is a message from you,
-                                      so the latest one is where the current task began.
+  ~/.claude/jobs/<id>/timeline.jsonl  its state changes. A line with "text" is where it ended a turn (its state can
+                                      still be "working" when it waits on background work). A message from you is a
+                                      "running" line with no "text" (older versions: a line with no "text" repeating a
+                                      finished state); the latest one is where the current task began.
   ~/.claude/sessions/<pid>.json       each running claude process; "interactive" ones are terminals (busy | idle).
-                                      Files of exited processes stay behind, so the pid is checked.
+                                      Files of exited processes stay behind, so the pid is checked. A terminal with a
+                                      parkedJobId is showing a background job: its own conversation was parked (as that
+                                      job, or not kept at all when it was empty), so it isn't an agent of its own.
 """
 import json
 import threading
@@ -74,10 +77,11 @@ def _timeline(path: Path) -> tuple:
                     e = json.loads(line)
                 except ValueError:
                     continue
-                if prev and prev.get("state") in ENDED and not e.get("text") and e.get("state") == prev.get("state"):
-                    start = _ms(e.get("at"))
-                elif e.get("state") in ENDED and e.get("text"):
+                if e.get("text"):
                     end = _ms(e.get("at"))
+                elif e.get("state") == "running" or (prev and prev.get("state") in ENDED
+                                                     and e.get("state") == prev.get("state")):
+                    start = _ms(e.get("at"))
                 prev = e
     except OSError:
         return None, None
@@ -153,9 +157,9 @@ def _collect(hours: float, idle_min: float) -> list:
                 by_id[a["id"]] = a
                 if a["session"]:
                     by_session[a["session"]] = a
-    # terminals you have open yourself; a terminal that was moved to the background is already listed as its job
+    # terminals you have open yourself. One with a parkedJobId is a window onto a background job (listed as that job)
     for s in sessions:
-        if s.get("kind") != "interactive" or s.get("parkedJobId") in by_id:
+        if s.get("kind") != "interactive" or s.get("parkedJobId"):
             continue
         job = by_session.get(s.get("sessionId"))
         if job:
